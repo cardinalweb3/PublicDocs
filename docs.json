@@ -3,11 +3,11 @@
   "theme": "mint",
   "name": "Cardinal",
   "colors": {
-    "primary": "#00D98B",
-    "light": "#00E99A",
-    "dark": "#00C77E"
+    "primary": "#5ECBE6",
+    "light": "#79DDF2",
+    "dark": "#2396B5"
   },
-  "favicon": "/favicon.svg",
+  "favicon": "https://app.cardinalweb3.com/favicon.svg",
   "navigation": {
     "pages": [
       {
@@ -53,8 +53,9 @@
     ]
   },
   "logo": {
-    "light": "/logo/light.svg",
-    "dark": "/logo/dark.svg"
+    "light": "https://app.cardinalweb3.com/favicon.svg",
+    "dark": "https://app.cardinalweb3.com/favicon.svg",
+    "href": "https://app.cardinalweb3.com"
   },
   "navbar": {
     "links": [
@@ -81,5 +82,23 @@
       "github": "https://github.com/Cardinal-Web3"
     }
   },
-  "description": "Public product and developer documentation for Cardinal Web3 Security."
+  "description": "Public product and developer documentation for Cardinal Web3 Security.",
+  "appearance": {
+    "default": "dark",
+    "strict": false
+  },
+  "background": {
+    "decoration": "grid",
+    "color": {
+      "light": "#F8FAFC",
+      "dark": "#101218"
+    }
+  },
+  "fonts": {
+    "family": "Geist"
+  },
+  "styling": {
+    "eyebrows": "breadcrumbs",
+    "codeblocks": "dark"
+  }
 }
