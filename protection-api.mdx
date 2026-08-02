@@ -1,0 +1,42 @@
+---
+title: "Protection API"
+description: "Evaluate transaction intent before wallet signature."
+icon: "shield-check"
+---
+
+The Protection API evaluates a proposed digital asset transaction before the wallet asks the user to sign.
+
+## Endpoint
+
+```http
+POST /api/check-transaction
+```
+
+Requests require an API key. The current backend supports request validation, deterministic scoring, network validation, local risk signals, structured findings, usage logging, and rate-limiting foundations.
+
+## Decision model
+
+| Decision | Meaning |
+| --- | --- |
+| `ALLOW` | Continue the protected transaction flow. |
+| `REVIEW` | Show the identified risk and require deliberate user review. |
+| `BLOCK` | Stop the protected flow before signature. |
+
+## Response
+
+```json
+{
+  "request_id": "req_example",
+  "risk_score": 18,
+  "risk_level": "LOW",
+  "network_valid": true,
+  "warnings": [],
+  "findings": [],
+  "recommended_action": "ALLOW",
+  "checked_at": "2026-08-02T10:00:00.000Z"
+}
+```
+
+<Warning title="MVP intelligence">
+  The connected backend is suitable for controlled pilots. External threat feeds, full RPC simulation, production contract-verification providers, partner-specific policies, and distributed rate limiting remain production roadmap work.
+</Warning>

@@ -1,0 +1,33 @@
+---
+title: "SafeSend"
+description: "Protected token transfers with risk checks before settlement."
+icon: "paper-plane"
+---
+
+SafeSend is Cardinal's protected transfer flow. It evaluates the intended transfer before token approval or contract execution.
+
+## Current flow
+
+```text
+Connect wallet
+→ Enter recipient and amount
+→ Run Cardinal protection scan
+→ Receive ALLOW, REVIEW, or BLOCK
+→ Preview fee and gas
+→ Approve token when required
+→ Create the SafeSend transfer
+```
+
+## Pilot environment
+
+| Component | Current status |
+| --- | --- |
+| Wallet | MetaMask-first |
+| Network | Arbitrum Sepolia |
+| Asset | Test USDC |
+| Protection | Connected Protection API |
+| Settlement | SafeSend testnet contract path |
+
+<Warning title="Testnet pilot">
+  SafeSend is not currently presented as audited mainnet settlement. Final contract verification, deployed addresses, ABI confirmation, monitoring, security review, and production fee controls must be completed before mainnet use.
+</Warning>

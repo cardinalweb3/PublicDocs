@@ -1,0 +1,36 @@
+---
+title: "Programmable Escrow"
+description: "Non-custodial buyer and seller settlement controls."
+icon: "handshake"
+---
+
+Cardinal Programmable Escrow is designed for higher-value digital asset settlement between a buyer and seller.
+
+## Implemented contract model
+
+The current contract repository includes:
+
+- ERC-20 escrow creation
+- Seller acceptance
+- Buyer release
+- Refund before seller acceptance
+- Configurable release window
+- Seller claim after timeout
+- Buyer or seller dispute initiation
+- Privileged dispute resolution
+- Platform fees
+- Pause controls
+- UUPS upgradeability
+
+## Settlement lifecycle
+
+```text
+Created → Accepted → Released
+   └────→ Refunded
+Accepted → Disputed → Released or Refunded
+Accepted → Timeout → Seller claim → Released
+```
+
+<Warning title="Security review required">
+  The dispute resolver and upgrade roles are highly privileged. Production deployment should use appropriate multisignature controls, operational policies, monitoring, independent testing, and a formal smart-contract audit.
+</Warning>
