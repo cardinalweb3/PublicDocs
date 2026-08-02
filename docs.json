@@ -42,7 +42,7 @@
       {
         "group": "Developers",
         "icon": "code",
-        "pages": ["integration-guide", "wallet-integration", "exchange-integration", "custodian-vault-integration"]
+        "pages": ["integration-guide", "wallet-integration", "exchange-integration", "custodian-vault-integration", "rwa-high-value-payments"]
       }
     ]
   },
