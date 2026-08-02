@@ -53,8 +53,8 @@
     ]
   },
   "logo": {
-    "light": "https://app.cardinalweb3.com/favicon.svg",
-    "dark": "https://app.cardinalweb3.com/favicon.svg",
+    "light": "/logo/light.svg",
+    "dark": "/logo/dark.svg",
     "href": "https://app.cardinalweb3.com"
   },
   "navbar": {
