@@ -73,7 +73,9 @@
         "icon": "book-open",
         "pages": [
           "knowledge-base",
+          "support",
           "pilot-onboarding",
+          "faq",
           "faq-troubleshooting",
           "changelog"
         ]
