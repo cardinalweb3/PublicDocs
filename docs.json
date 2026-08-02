@@ -42,7 +42,7 @@
       {
         "group": "Developers",
         "icon": "code",
-        "pages": ["integration-guide"]
+        "pages": ["integration-guide", "wallet-integration"]
       }
     ]
   },
