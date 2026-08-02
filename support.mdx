@@ -1,0 +1,139 @@
+---
+title: "Support Portal"
+description: "Get product, integration, pilot, and security support for Cardinal."
+---
+
+Use this portal to prepare a support request, choose the right route, and keep sensitive information out of diagnostic evidence.
+
+<Warning>
+  Never send API keys, private keys, seed phrases, passwords, full authentication tokens, identity documents, confidential contracts, or unrestricted transaction records.
+</Warning>
+
+## Before contacting support
+
+<CardGroup cols={2}>
+  <Card title="Knowledge Base" icon="book-open" href="/knowledge-base">
+    Find product, integration, security, and pilot guidance.
+  </Card>
+
+  <Card title="FAQ & Troubleshooting" icon="screwdriver-wrench" href="/faq">
+    Diagnose API, wallet, network, SafeSend, Escrow, and pilot issues.
+  </Card>
+
+  <Card title="Security Best Practices" icon="shield" href="/security-best-practices">
+    Review credential, signing, approval, logging, and incident controls.
+  </Card>
+
+  <Card title="Product Status" icon="signal" href="/product-status">
+    Confirm whether a capability is available, testnet, pilot, or in development.
+  </Card>
+
+  <Card title="Changelog" icon="clock-rotate-left" href="/changelog">
+    Review dated product and documentation updates.
+  </Card>
+</CardGroup>
+
+## Choose a support route
+
+| Request | First action | What to include |
+| --- | --- | --- |
+| Documentation or product question | Check the Knowledge Base and Product Status | Page link, question, intended workflow |
+| Integration or API issue | Run the diagnostic checklist below | Environment, time, request ID, non-secret error, reproduction |
+| Pilot operations | Contact the named pilot owner or Cardinal | Pilot name, product, environment, impact |
+| Unexpected risk decision | Pause the affected transaction | Exact non-secret intent fields, decision, findings, request ID |
+| Wallet, SafeSend, or Escrow issue | Confirm network, address role, state, contract, gas, and pending transactions | Product, network, state, public transaction hash |
+| Suspected security incident | Follow your incident-response process immediately | Sanitised timeline, affected environment, exposure and containment |
+| Commercial or pilot enquiry | Contact Cardinal | Organisation, use case, expected volume, target timing |
+
+## Contact Cardinal
+
+- **Email:** [contact@cardinalweb3.com](mailto:contact@cardinalweb3.com)
+- **Telephone:** [\+971 58 512 0045](tel:+971585120045)
+
+Support coverage, response targets, escalation routes, and service commitments are defined by the applicable partner or pilot agreement. The public documentation does not promise a fixed SLA, live chat, 24/7 coverage, or a public ticketing system.
+
+## Request template
+
+```text
+Organisation:
+Contact name and role:
+Product:
+Environment:
+Network:
+Approximate time and timezone:
+Cardinal request_id:
+Internal reference:
+Observed result:
+Expected result:
+Non-secret error or response:
+Reproduction steps:
+Business impact:
+Actions already taken:
+```
+
+Redact secrets, personal data, confidential transaction information, and internal-only system details before sending.
+
+## Severity guide
+
+| Severity | Use when |
+| --- | --- |
+| Critical | Active security issue, unauthorised settlement, exposed credentials, or an unsafe transaction flow |
+| High | A pilot or protected transaction is blocked, or a severe integration failure is recurring |
+| Normal | A functional issue exists but a safe workaround is available |
+| General | How-to, documentation, product, pilot-planning, or commercial question |
+
+Severity helps Cardinal understand impact; it does not create a guaranteed response time outside an agreement.
+
+## Diagnostic checklist
+
+- [ ] Confirm the product and environment.
+- [ ] Confirm the network, token, contract, wallet, and address role.
+- [ ] Verify the final canonical transaction intent.
+- [ ] Record the Cardinal `request_id`, if returned.
+- [ ] Record your internal reference and approximate timestamp.
+- [ ] Capture the response status and non-secret error.
+- [ ] Check whether the issue is reproducible.
+- [ ] Check for a pending API request or blockchain transaction.
+- [ ] Remove secrets, personal data, and confidential records.
+- [ ] Pause the affected flow when transaction safety is uncertain.
+
+## Unexpected decision investigation
+
+Preserve the product, environment, network, Cardinal `request_id`, canonical intent hash, non-secret transaction fields, returned decision and findings, expected result, timestamp, and internal reference. Do not change request data merely to obtain a preferred result. Fail closed on API errors, timeouts, or unavailable service.
+
+## Security incidents
+
+1. Pause the affected transaction or integration flow.
+2. Rotate exposed Cardinal and partner credentials.
+3. Revoke or restrict affected sessions and permissions.
+4. Preserve sanitised logs, timestamps, request IDs, hashes, and public transaction references.
+5. Follow your organisation's incident-response and notification process.
+6. Contact Cardinal through the agreed escalation route or the public contact details above.
+
+Do not send live credentials or identity documents as evidence.
+
+## SafeSend and Escrow support boundaries
+
+SafeSend's currently verified scope is a controlled Arbitrum Sepolia testnet MVP. Programmable Escrow remains in final testing and security hardening. Confirm the approved deployment, network, contract address, roles, value limits, and operational process before testing.
+
+Cardinal support cannot bypass smart-contract roles or state transitions, reverse a final blockchain transaction, recover private keys, determine legal ownership, or replace a licensed escrow provider.
+
+## Pilot support
+
+Include the signed scope, named owners, product, environment, approved networks and assets, value limits, test case, success criterion, and business impact. Use test assets unless the signed scope and all required approvals explicitly permit otherwise.
+
+## Data handling
+
+Share only the minimum evidence needed. Prefer request IDs, hashes, public transaction links, redacted screenshots, and non-secret logs.
+
+## Cardinal support will never ask for
+
+- A private key or seed phrase
+- A password or full authentication token
+- An unrestricted API key
+- Remote signing authority
+- A transfer to a personal wallet
+- Identity documents through an unapproved channel
+- A confidential contract outside an authorised commercial process
+
+If a request appears suspicious, stop and verify it using the published contact details on this page.

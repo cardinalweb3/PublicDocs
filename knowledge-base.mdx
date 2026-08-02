@@ -6,7 +6,7 @@ description: "Find Cardinal product guides, integration instructions, security g
 Use the Cardinal Knowledge Base to find the right guide for your role, product, and implementation stage.
 
 <Note>
-Current capability boundary: Protection API pre-transaction decisioning is available; SafeSend is a controlled Arbitrum Sepolia testnet MVP; Programmable Escrow remains in final testing and security hardening.
+  Current capability boundary: Protection API pre-transaction decisioning is available; SafeSend is a controlled Arbitrum Sepolia testnet MVP; Programmable Escrow remains in final testing and security hardening.
 </Note>
 
 ## Start here
@@ -15,12 +15,15 @@ Current capability boundary: Protection API pre-transaction decisioning is avail
   <Card title="Cardinal overview" icon="house" href="/">
     Understand how Cardinal protects digital-asset transactions before value moves.
   </Card>
+
   <Card title="Protection API quickstart" icon="bolt" href="/quickstart">
     Make your first transaction check and interpret the decision.
   </Card>
+
   <Card title="Integration guide" icon="code" href="/integration-guide">
     Add Cardinal safely to a backend, policy engine, and signing flow.
   </Card>
+
   <Card title="Product status" icon="signal" href="/product-status">
     Separate available, pilot, testnet, and in-development capabilities.
   </Card>
@@ -33,11 +36,11 @@ Current capability boundary: Protection API pre-transaction decisioning is avail
 | Product or business leader | [Cardinal overview](/), [Product status](/product-status), [Pilot onboarding](/pilot-onboarding) |
 | Backend or platform engineer | [Protection API](/protection-api), [Quickstart](/quickstart), [Integration guide](/integration-guide) |
 | Wallet provider | [Wallet integration](/wallet-integration), [Security best practices](/security-best-practices) |
-| Exchange or payment platform | [Exchange integration](/exchange-integration), [FAQ & Troubleshooting](/faq-troubleshooting) |
+| Exchange or payment platform | [Exchange integration](/exchange-integration), [FAQ & Troubleshooting](/faq) |
 | Custodian or vault provider | [Custodian & vault integration](/custodian-vault-integration), [Security best practices](/security-best-practices) |
 | RWA or high-value business | [RWA & high-value payments](/rwa-high-value-payments), [Pilot onboarding](/pilot-onboarding) |
 | Security, risk, or compliance team | [Security best practices](/security-best-practices), [Product status](/product-status) |
-| Pilot operator or reviewer | [Pilot onboarding](/pilot-onboarding), [FAQ & Troubleshooting](/faq-troubleshooting) |
+| Pilot operator or reviewer | [Pilot onboarding](/pilot-onboarding), [FAQ & Troubleshooting](/faq) |
 
 ## Product guides
 
@@ -45,9 +48,11 @@ Current capability boundary: Protection API pre-transaction decisioning is avail
   <Card title="Protection API" icon="shield-check" href="/protection-api">
     Request fields, authentication, decision handling, and capability boundaries.
   </Card>
+
   <Card title="SafeSend" icon="clock-rotate-left" href="/safesend">
     Protected-transfer states, cancellation concepts, and testnet limitations.
   </Card>
+
   <Card title="Programmable Escrow" icon="handshake" href="/escrow">
     Funding, acceptance, release, refund, disputes, resolver settlement, and fees.
   </Card>
@@ -59,7 +64,7 @@ Current capability boundary: Protection API pre-transaction decisioning is avail
 2. Complete the [Protection API quickstart](/quickstart).
 3. Design your backend flow with the [Integration Guide](/integration-guide).
 4. Apply the [Security Best Practices](/security-best-practices).
-5. Test error handling with [FAQ & Troubleshooting](/faq-troubleshooting).
+5. Test error handling with [FAQ & Troubleshooting](/faq).
 
 ### SafeSend learning path
 
@@ -83,12 +88,15 @@ Current capability boundary: Protection API pre-transaction decisioning is avail
   <Card title="Wallet providers" icon="wallet" href="/wallet-integration">
     Add transaction decisioning before wallet confirmation and signature.
   </Card>
+
   <Card title="Exchanges" icon="arrow-right-arrow-left" href="/exchange-integration">
     Protect withdrawals, treasury movements, and platform settlement.
   </Card>
+
   <Card title="Custodians and vaults" icon="building-columns" href="/custodian-vault-integration">
     Combine Cardinal decisions with policies, approvals, and signing infrastructure.
   </Card>
+
   <Card title="RWA and high-value payments" icon="gem" href="/rwa-high-value-payments">
     Structure property, OTC, luxury, milestone, and tokenised-asset workflows.
   </Card>
@@ -104,7 +112,7 @@ Current capability boundary: Protection API pre-transaction decisioning is avail
 | Error, timeout, or unavailable | Fail closed; pause or queue rather than allowing |
 
 <Card title="Canonical intent" icon="fingerprint">
-The Cardinal result must remain bound to the exact sender, recipient, network, token, amount, transaction type, contract, approval scope, and permissions that the user or authorised operator will sign.
+  The Cardinal result must remain bound to the exact sender, recipient, network, token, amount, transaction type, contract, approval scope, and permissions that the user or authorised operator will sign.
 </Card>
 
 ## Security and operations
@@ -113,7 +121,8 @@ The Cardinal result must remain bound to the exact sender, recipient, network, t
   <Card title="Security Best Practices" icon="shield" href="/security-best-practices">
     Protect API keys, signing flows, approvals, logs, environments, and incident response.
   </Card>
-  <Card title="FAQ & Troubleshooting" icon="screwdriver-wrench" href="/faq-troubleshooting">
+
+  <Card title="FAQ & Troubleshooting" icon="screwdriver-wrench" href="/faq">
     Diagnose API, wallet, network, SafeSend, Escrow, and pilot issues.
   </Card>
 </CardGroup>
@@ -135,6 +144,7 @@ The Cardinal result must remain bound to the exact sender, recipient, network, t
   <Card title="Pilot Onboarding" icon="rocket" href="/pilot-onboarding">
     Plan a controlled 60–90 day design-partner pilot.
   </Card>
+
   <Card title="RWA & high-value pilot" icon="building" href="/rwa-high-value-payments">
     Apply Cardinal to a narrow commercial payment workflow.
   </Card>
@@ -155,19 +165,19 @@ A pilot should have:
 
 | Symptom | Go to |
 | --- | --- |
-| Authentication or validation error | [API troubleshooting](/faq-troubleshooting#api-troubleshooting) |
-| Unexpected decision | [Protection API questions](/faq-troubleshooting#protection-api-questions) |
-| Wrong wallet network | [Networks and tokens](/faq-troubleshooting#networks-and-tokens) |
-| Wallet will not connect | [Wallet troubleshooting](/faq-troubleshooting#wallet-troubleshooting) |
-| SafeSend action unavailable | [SafeSend questions](/faq-troubleshooting#safesend-questions) |
-| Escrow cannot release | [Escrow questions](/faq-troubleshooting#escrow-questions) |
-| Pilot setup question | [Pilot questions](/faq-troubleshooting#pilot-questions) |
+| Authentication or validation error | [API troubleshooting](/faq#api-troubleshooting) |
+| Unexpected decision | [Protection API questions](/faq#protection-api-questions) |
+| Wrong wallet network | [Networks and tokens](/faq#networks-and-tokens) |
+| Wallet will not connect | [Wallet troubleshooting](/faq#wallet-troubleshooting) |
+| SafeSend action unavailable | [SafeSend questions](/faq#safesend-questions) |
+| Escrow cannot release | [Escrow questions](/faq#escrow-questions) |
+| Pilot setup question | [Pilot questions](/faq#pilot-questions) |
 | Suspected credential exposure | [Incident response](/security-best-practices#incident-response) |
 
 ## Release information
 
 <Card title="Changelog & Release Notes" icon="clock-rotate-left" href="/changelog">
-Review confirmed product, pilot, testnet, and documentation updates.
+  Review confirmed product, pilot, testnet, and documentation updates.
 </Card>
 
 Use the [Product Status](/product-status) page for the current capability boundary. Use the [Changelog](/changelog) for dated updates. A roadmap or planned item is not a released capability.
@@ -192,7 +202,7 @@ Incoming-funds tracing and stolen or hacked-funds detection remain roadmap capab
 If the Knowledge Base does not resolve your question:
 
 - **Email:** [contact@cardinalweb3.com](mailto:contact@cardinalweb3.com)
-- **Telephone:** [+971 58 512 0045](tel:+971585120045)
+- **Telephone:** [\+971 58 512 0045](tel:+971585120045)
 - **Application:** [app.cardinalweb3.com](https://app.cardinalweb3.com)
 
 For technical support, include the product, environment, network, approximate time, Cardinal `request_id` where available, business impact, and non-secret reproduction details.
