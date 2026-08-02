@@ -1,0 +1,310 @@
+---
+title: "Integration Guide"
+description: "Connect the Protection API, SafeSend, and Programmable Escrow."
+icon: "code-branch"
+---
+
+This guide shows how a wallet, exchange, custodian, marketplace, or digital-asset application can combine Cardinal's risk decision with a protected settlement route.
+
+<Warning title="Current integration boundary">
+  The Protection API is suitable for sandbox integrations and controlled pilots. SafeSend is a connected testnet MVP, while Programmable Escrow is in final testing and security hardening. Do not route unrestricted mainnet value through a pilot configuration.
+</Warning>
+
+## Integration outcome
+
+Every protected transaction follows one control sequence:
+
+```text
+Create exact transaction intent
+→ Send intent to a trusted backend
+→ POST /api/check-transaction
+→ Receive ALLOW, REVIEW, or BLOCK with findings
+→ Apply partner policy
+→ Route into direct settlement, SafeSend, or Escrow
+→ Confirm the on-chain result
+→ Store decision and settlement evidence
+```
+
+The risk decision must happen before token approval, wallet signature, or contract execution.
+
+## Components
+
+| Component | Responsibility |
+| --- | --- |
+| Partner frontend | Collect intent, show findings, request acknowledgement, and display settlement state |
+| Partner backend | Protect the API key, call Cardinal, apply policy, and store decision evidence |
+| Protection API | Validate intent and return an explainable risk decision |
+| SafeSend | Delay ERC-20 settlement and allow sender cancellation before release |
+| Programmable Escrow | Lock ERC-20 funds under buyer, seller, timeout, release, and dispute controls |
+| Blockchain client | Read state, submit approved contract calls, and confirm transactions |
+
+<CardGroup cols={3}>
+  <Card title="Protection API" icon="shield-check" href="/protection-api">
+    Request and interpret risk decisions.
+  </Card>
+  <Card title="SafeSend" icon="paper-plane" href="/safesend">
+    Use delayed cancellable settlement.
+  </Card>
+  <Card title="Escrow" icon="handshake" href="/escrow">
+    Use buyer and seller settlement controls.
+  </Card>
+</CardGroup>
+
+## 1. Create an immutable intent
+
+Build the complete transaction intent before calling Cardinal.
+
+```typescript
+type CardinalTransactionIntent = {
+  from_address: string;
+  to_address: string;
+  chain: string;
+  token: string;
+  amount: number;
+  transaction_type?: "safe_send" | "approval" | "contract_interaction" | "swap" | "mint";
+  contract_address?: string;
+  contract_verified?: boolean;
+  approval_amount?: string;
+  permissions?: string[];
+};
+```
+
+The checked intent and the submitted transaction must match. Generate a new check if any protected field changes.
+
+For contract-based settlement, `to_address` should identify the economic recipient and `contract_address` should identify the verified SafeSend or Escrow deployment involved in execution.
+
+## 2. Call Cardinal from a trusted backend
+
+Never put the Cardinal API key in frontend code.
+
+```typescript
+export async function checkWithCardinal(intent: CardinalTransactionIntent) {
+  const response = await fetch(
+    `${process.env.CARDINAL_API_URL}/api/check-transaction`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": process.env.CARDINAL_API_KEY!,
+      },
+      body: JSON.stringify(intent),
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error(`Cardinal protection check failed: ${response.status}`);
+  }
+
+  return response.json();
+}
+```
+
+Your backend should validate the frontend request, create the canonical intent, call Cardinal, and return only the information required to render the decision.
+
+## 3. Store the decision evidence
+
+A successful response includes:
+
+```json
+{
+  "request_id": "req_example",
+  "risk_score": 18,
+  "risk_level": "LOW",
+  "network_valid": true,
+  "warnings": [],
+  "findings": [],
+  "recommended_action": "ALLOW",
+  "checked_at": "2026-08-02T10:00:00.000Z"
+}
+```
+
+Store at minimum:
+
+| Field | Why retain it |
+| --- | --- |
+| `request_id` | Trace support and investigation requests |
+| Canonical intent | Prove what Cardinal evaluated |
+| `recommended_action` | Record the decision used by the integration |
+| `risk_score` and `risk_level` | Display and reporting context |
+| `findings` and `warnings` | Explain review or blocking decisions |
+| `checked_at` | Establish when the check occurred |
+| Partner policy result | Record any stricter partner-side decision |
+| User acknowledgement | Evidence that a `REVIEW` warning was accepted |
+| Settlement route | Direct, SafeSend, or Escrow |
+| Transaction hash and final status | Join off-chain decisioning to on-chain outcome |
+
+Do not store secrets, private keys, seed phrases, or unnecessary personal data with this evidence.
+
+## 4. Apply the decision
+
+```typescript
+function resolveCardinalDecision(result: {
+  recommended_action: "ALLOW" | "REVIEW" | "BLOCK";
+  findings: unknown[];
+}) {
+  switch (result.recommended_action) {
+    case "ALLOW":
+      return { mayContinue: true, acknowledgementRequired: false };
+
+    case "REVIEW":
+      return { mayContinue: false, acknowledgementRequired: true };
+
+    case "BLOCK":
+      return { mayContinue: false, acknowledgementRequired: false };
+  }
+}
+```
+
+| Decision | Minimum behaviour |
+| --- | --- |
+| `ALLOW` | Continue only if partner policy also permits the transaction |
+| `REVIEW` | Display every finding and require explicit, recorded acknowledgement |
+| `BLOCK` | Stop before approval, signature, or contract execution |
+
+A partner may enforce a stricter result than Cardinal. It must not silently weaken `BLOCK` or bypass acknowledgement for `REVIEW`.
+
+<Info>
+  Use `recommended_action` as the decision, `findings` as the reasons, and `risk_score` as a summary. Do not make settlement decisions from the numeric score alone.
+</Info>
+
+## 5. Select the settlement route
+
+Route selection combines the Cardinal verdict with the partner's transaction policy.
+
+| Route | Appropriate current use |
+| --- | --- |
+| Direct settlement | Partner-controlled flow where `ALLOW` and policy permit normal execution |
+| SafeSend | Testnet pilot requiring a cancellation window before ERC-20 release |
+| Programmable Escrow | Controlled integration requiring buyer and seller acceptance, release, refund, timeout, or dispute controls |
+| Multisig Escrow | Controlled high-value integration requiring a threshold of authorised release approvers |
+| Stop | Every `BLOCK`, failed check, invalid network, or policy denial |
+
+```typescript
+function chooseRoute(
+  cardinalAction: "ALLOW" | "REVIEW" | "BLOCK",
+  policy: { requireEscrow: boolean; requireDelay: boolean },
+  reviewAcknowledged: boolean,
+) {
+  if (cardinalAction === "BLOCK") return "STOP";
+  if (cardinalAction === "REVIEW" && !reviewAcknowledged) return "STOP";
+  if (policy.requireEscrow) return "ESCROW";
+  if (policy.requireDelay) return "SAFESEND";
+  return "DIRECT";
+}
+```
+
+This example is integration structure, not a universal Cardinal routing policy. Each partner must define and approve its own thresholds and route requirements.
+
+## SafeSend route
+
+The SafeSend sequence is:
+
+```text
+Protection decision accepted
+→ Verify Arbitrum Sepolia and test USDC pilot configuration
+→ Read token allowance
+→ Approve only when required
+→ Call createSafeSend(...)
+→ Store transfer ID and creation transaction hash
+→ Read Pending state and release time on-chain
+→ Sender cancels before release, or settlement releases after delay
+→ Record Cancelled or Released state
+```
+
+Do not reuse the pilot's testnet addresses, tokens, fee configuration, or assumptions for a future production deployment.
+
+## Escrow route
+
+The buyer and seller Escrow sequence is:
+
+```text
+Protection decision accepted
+→ Verify intended Escrow deployment and ERC-20 token
+→ Read fee and release-window configuration
+→ Buyer approves only the required amount
+→ Buyer calls createEscrow(...)
+→ Seller accepts before acceptance deadline
+→ Buyer releases, either party disputes, or seller claims after timeout
+→ Contract releases to seller or refunds buyer
+→ Record terminal state
+```
+
+The Multisig Escrow variant replaces buyer release with threshold approvals from the contract's authorised global approver set.
+
+## State synchronisation
+
+Applications should combine events with direct contract reads.
+
+```text
+Contract event observed
+→ Read transfer or escrow state from the verified contract
+→ Wait for required confirmations
+→ Update internal record idempotently
+→ Notify the user
+```
+
+Events are useful for discovery and notifications, but the contract read is the source of truth for current status and action eligibility.
+
+Handle chain reorganisations, replaced transactions, duplicate events, delayed indexing, and temporary RPC failures without incorrectly marking settlement final.
+
+## Re-check rules
+
+Run a new Protection API check when:
+
+- Sender or recipient changes
+- Chain or token changes
+- Amount changes
+- Settlement contract changes
+- Approval amount changes
+- Requested permissions change
+- Application policy requires a fresher decision
+- A prior check failed or cannot be tied to the final transaction
+
+A new check is also appropriate after a long user delay or before a materially changed execution attempt, according to the partner's approved policy.
+
+## Failure handling
+
+| Failure | Required response |
+| --- | --- |
+| Protection API unavailable | Show a real error and stop the protected flow |
+| Missing or invalid API key | Fix backend configuration; never ask the end user for the key |
+| Rate limit exceeded | Apply controlled retry/backoff and keep settlement stopped |
+| Wallet on wrong network | Ask the user to switch to the verified environment |
+| User rejects wallet request | Keep the flow incomplete and allow a deliberate retry |
+| Approval fails | Do not submit the settlement call |
+| Settlement transaction fails | Read current allowance and contract state before retrying |
+| Confirmation is delayed | Show pending state without claiming success |
+| Intent changes | Invalidate the old decision and run a new check |
+
+Never silently fall back to mock risk data, a default `ALLOW`, an unverified contract address, or a different network.
+
+## Security checklist
+
+Before enabling a pilot:
+
+- Keep Cardinal API credentials only on trusted backend infrastructure.
+- Allowlist the verified chain, proxy, implementation, token, and recipient contracts for the pilot.
+- Confirm token decimals and use integer base units for contract calls.
+- Bind decision evidence to the canonical intent and authenticated partner user.
+- Prevent replay and duplicate submission.
+- Apply explicit `REVIEW` acknowledgement.
+- Stop every `BLOCK` and failed protection check.
+- Display fees, gas, deadlines, addresses, and settlement route before confirmation.
+- Monitor contract events, API errors, and failed or stuck transactions.
+- Document incident escalation and pilot shutdown procedures.
+- Do not claim external audit coverage that has not been completed.
+
+## Current production boundary
+
+The connected workflow is suitable for sandbox development and controlled pilots using the verified environment supplied during onboarding.
+
+Production rollout requires verified deployment addresses and ABIs, supported-token policy, external contract-security review status, production monitoring, shared rate limiting, partner-specific controls, incident response, operational ownership of privileged roles, and an approved dispute process.
+
+<CardGroup cols={2}>
+  <Card title="Start with the Quickstart" icon="bolt" href="/quickstart">
+    Run your first Protection API check.
+  </Card>
+  <Card title="Review product status" icon="list-check" href="/product-status">
+    Confirm what is live, in testing, and planned.
+  </Card>
+</CardGroup>
