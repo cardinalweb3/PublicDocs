@@ -16,8 +16,6 @@
   "logo": {
     "light": "/logo/cardinal-logo-light.png",
     "dark": "/logo/cardinal-logo-dark.png",
-    "light": "/logo/light.svg",
-    "dark": "/logo/dark.svg",
     "href": "https://app.cardinalweb3.com"
   },
   "navbar": {"links":[{"href":"https://app.cardinalweb3.com","label":"Cardinal App"}]},
@@ -29,3 +27,4 @@
   "fonts": {"family":"Geist"},
   "styling": {"eyebrows":"breadcrumbs","codeblocks":"dark"}
 }
+
