@@ -1,32 +1,98 @@
 ---
 title: "Protection API"
-description: "Evaluate transaction intent before wallet signature."
+description: "Complete reference for Cardinal transaction risk checks."
 icon: "shield-check"
 ---
 
-The Protection API evaluates a proposed digital asset transaction before the wallet asks the user to sign.
+The Cardinal Protection API evaluates transaction intent before a wallet, partner application, SafeSend flow, or escrow flow asks a user to sign.
 
-## Endpoint
+<Warning title="Controlled pilot">
+  The current backend is a professional MVP for sandbox integrations and controlled pilots. Use the API host and key supplied during onboarding. Production threat feeds, full RPC simulation, external contract-verification providers, partner-specific policies, and distributed rate limiting are planned upgrades.
+</Warning>
+
+## Base URL and authentication
+
+Your Cardinal onboarding contact provides the correct API base URL and an environment-specific API key.
+
+```bash
+export CARDINAL_API_URL="https://<your-cardinal-api-host>"
+export CARDINAL_API_KEY="<your-pilot-api-key>"
+```
+
+Send the key in the `x-api-key` header:
+
+```http
+x-api-key: <your-pilot-api-key>
+```
+
+Keys can be assigned to a partner and environment, scoped, rate-limited, revoked, or expired. Cardinal stores API keys as hashes.
+
+<Warning>
+  Keep API keys on a trusted backend. Never expose them in browser code, mobile bundles, browser storage, public repositories, analytics, or logs.
+</Warning>
+
+## Check a transaction
 
 ```http
 POST /api/check-transaction
 ```
 
-Requests require an API key. The current backend supports request validation, deterministic scoring, network validation, local risk signals, structured findings, usage logging, and rate-limiting foundations.
+Call this endpoint before requesting a wallet signature, token approval, or contract call.
 
-## Decision model
+```bash
+curl -X POST "$CARDINAL_API_URL/api/check-transaction" \  -H "Content-Type: application/json" \  -H "x-api-key: $CARDINAL_API_KEY" \  -d '{
+    "from_address": "0x123",
+    "to_address": "0x456",
+    "chain": "arbitrum",
+    "token": "USDC",
+    "amount": 500,
+    "transaction_type": "safe_send",
+    "contract_verified": true,
+    "permissions": []
+  }'
+```
 
-| Decision | Meaning |
+### Required fields
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `from_address` | string | Sender wallet address |
+| `to_address` | string | Recipient wallet address |
+| `chain` | string | Supported chain slug |
+| `token` | string | Token symbol, such as `USDC`, `USDT`, or `ETH` |
+| `amount` | number | Proposed transfer amount |
+
+### Optional fields
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `transaction_type` | string | `safe_send`, `approval`, `contract_interaction`, `swap`, or `mint` |
+| `contract_address` | string | Contract involved in the transaction |
+| `contract_verified` | boolean | Whether the caller considers the contract verified or trusted |
+| `approval_amount` | string | `unlimited`, `max`, or an exact approval amount |
+| `permissions` | string[] | Requested contract functions or permissions |
+
+## Supported chains
+
+| Network | Slug |
 | --- | --- |
-| `ALLOW` | Continue the protected transaction flow. |
-| `REVIEW` | Show the identified risk and require deliberate user review. |
-| `BLOCK` | Stop the protected flow before signature. |
+| Ethereum | `ethereum` |
+| BNB Chain | `bnb` |
+| Polygon | `polygon` |
+| Base | `base` |
+| Arbitrum | `arbitrum` |
+| Optimism | `optimism` |
+| Solana | `solana` |
+
+Supported input does not imply every network has identical live intelligence coverage during the pilot.
 
 ## Response
 
+A successful check returns a stable response shape:
+
 ```json
 {
-  "request_id": "req_example",
+  "request_id": "req_2f57f5db-5f78-46db-9a49-534d99b37d08",
   "risk_score": 18,
   "risk_level": "LOW",
   "network_valid": true,
@@ -37,6 +103,162 @@ Requests require an API key. The current backend supports request validation, de
 }
 ```
 
-<Warning title="MVP intelligence">
-  The connected backend is suitable for controlled pilots. External threat feeds, full RPC simulation, production contract-verification providers, partner-specific policies, and distributed rate limiting remain production roadmap work.
-</Warning>
+| Field | Type | Description |
+| --- | --- | --- |
+| `request_id` | string | Unique trace ID for support and debugging |
+| `risk_score` | number | Summary score from 0 to 100 |
+| `risk_level` | string | `LOW`, `MEDIUM`, `HIGH`, or `CRITICAL` |
+| `network_valid` | boolean | Whether the chain, token, and address combination is valid |
+| `warnings` | string[] | Plain-language warnings for the user |
+| `findings` | object[] | Stable machine-readable reasons |
+| `recommended_action` | string | `ALLOW`, `REVIEW`, or `BLOCK` |
+| `checked_at` | string | ISO 8601 timestamp |
+
+## Decision handling
+
+| Decision | Required application behaviour |
+| --- | --- |
+| `ALLOW` | Continue to the protected signature or contract flow |
+| `REVIEW` | Display the findings and require explicit acknowledgement before continuing |
+| `BLOCK` | Stop the protected transaction flow |
+
+<Info>
+  Use the score as the summary, findings as the reasons, and `recommended_action` as the decision. Do not make application decisions from `risk_score` alone.
+</Info>
+
+### Review example
+
+```json
+{
+  "request_id": "req_example",
+  "risk_score": 30,
+  "risk_level": "MEDIUM",
+  "network_valid": true,
+  "warnings": ["Large transaction amount requires additional review"],
+  "findings": [
+    {
+      "code": "large_transaction_amount",
+      "source": "risk",
+      "severity": "MEDIUM",
+      "message": "Large transaction amount requires additional review",
+      "recommended_action": "REVIEW"
+    }
+  ],
+  "recommended_action": "REVIEW",
+  "checked_at": "2026-08-02T10:00:00.000Z"
+}
+```
+
+### Block example
+
+```json
+{
+  "request_id": "req_example",
+  "risk_score": 53,
+  "risk_level": "MEDIUM",
+  "network_valid": true,
+  "warnings": ["Unlimited token approval detected"],
+  "findings": [
+    {
+      "code": "unlimited_token_approval",
+      "source": "simulation",
+      "severity": "HIGH",
+      "message": "Unlimited token approval detected",
+      "recommended_action": "BLOCK"
+    }
+  ],
+  "recommended_action": "BLOCK",
+  "checked_at": "2026-08-02T10:00:00.000Z"
+}
+```
+
+## Findings
+
+Each finding explains a specific reason for the decision.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `code` | string | Stable identifier for frontend logic |
+| `source` | string | `network`, `scam`, `simulation`, or `risk` |
+| `severity` | string | `LOW`, `MEDIUM`, `HIGH`, or `CRITICAL` |
+| `message` | string | Plain-language message for the user |
+| `recommended_action` | string | Optional action for this individual finding |
+
+During the current pilot, intelligence uses deterministic, explainable local checks. Examples include additional review for a large transfer to a recipient with little Cardinal history, review for an unverified upgradeable contract, and blocking an unverified contract requesting admin-level permissions.
+
+## Rate limits
+
+Protected transaction checks return rate-limit headers:
+
+```http
+X-RateLimit-Limit: 300
+X-RateLimit-Remaining: 299
+X-RateLimit-Reset: 2026-08-02T10:01:00.000Z
+```
+
+Limits may vary by pilot key. The current limiter applies to one API instance.
+
+## Errors
+
+### Missing or invalid API key
+
+```http
+HTTP 401 Unauthorized
+```
+
+The response message indicates `Missing API key` or `Invalid API key`.
+
+### Rate limit exceeded
+
+```http
+HTTP 429 Too Many Requests
+```
+
+```json
+{
+  "statusCode": 429,
+  "message": "Rate limit exceeded"
+}
+```
+
+### Validation or service failure
+
+Treat any non-success response as a failed protection check. Display a real error, retain the `request_id` when one is available, and do not silently substitute a mock verdict.
+
+## Integration sequence
+
+```text
+Compose transaction intent
+→ POST /api/check-transaction
+→ Render ALLOW, REVIEW, or BLOCK with findings
+→ Continue only for ALLOW or an explicitly acknowledged REVIEW
+→ Stop for BLOCK
+→ Only then request token approval, signature, or contract execution
+```
+
+The protection check must happen before value can move. Re-check the transaction if the recipient, chain, token, amount, contract, approval, or permissions change.
+
+## Health check
+
+```http
+GET /health
+```
+
+The health endpoint is public.
+
+```json
+{
+  "status": "ok",
+  "service": "Cardinal Protection API"
+}
+```
+
+## Current capability boundary
+
+The connected backend currently provides request validation, API-key authentication, network validation, deterministic risk scoring, local wallet and contract signals, stable findings, usage logging, and single-instance rate limiting.
+
+It is not yet a full production on-chain simulation or threat-intelligence platform. Planned production layers include RPC-backed simulation, decoded token movement changes, external scam and threat feeds, external contract verification, official contract allowlists, shared rate limiting, and partner-specific policies.
+
+<Card title="Run your first check" icon="bolt" href="/quickstart">
+  Follow the Protection API Quickstart.
+</Card>
