@@ -1,0 +1,194 @@
+---
+title: "Security Best Practices"
+description: "Secure Cardinal integrations across API access, transaction decisioning, wallets, SafeSend, Escrow, approvals, and production operations."
+---
+
+Cardinal adds a security decision point before a blockchain transaction is signed or value moves. A secure integration combines Cardinal's `ALLOW`, `REVIEW`, or `BLOCK` result with your own authentication, compliance, approval, signing, and operational controls.
+
+<Warning>
+Cardinal reduces transaction risk but cannot guarantee complete protection. Your organisation remains responsible for key management, identity and access management, KYC and AML obligations, legal and regulatory review, contract verification, monitoring, incident response, and the final decision to sign or release funds.
+</Warning>
+
+## Security model
+
+Use Cardinal as one control in a layered transaction-security architecture:
+
+1. Your application authenticates the user and verifies their authority.
+2. Your backend constructs the final canonical transaction intent.
+3. The backend submits that intent to the Protection API.
+4. Cardinal returns an explainable decision and findings.
+5. Your policy engine combines the Cardinal result with internal rules and required approvals.
+6. The wallet or authorised signer verifies and signs the unchanged intent.
+7. Your systems record and reconcile the blockchain outcome.
+
+<Card title="Core rule" icon="shield-check">
+Run the Protection API after the transaction intent is final and immediately before signature, broadcast, SafeSend funding, or Escrow release.
+</Card>
+
+## Keep secrets server-side
+
+Never expose a Cardinal API key in browser code, a mobile application, a public repository, logs, screenshots, support messages, or client-visible error responses.
+
+- Call Cardinal from a trusted backend or protected serverless function.
+- Store keys in an approved secret manager.
+- Separate development, staging, pilot, and production credentials.
+- Restrict access using least privilege and named service identities.
+- Rotate keys after suspected exposure and on your organisation's schedule.
+- Remove access promptly when a person, service, or integration no longer requires it.
+- Never send private keys, seed phrases, signing material, passwords, or session tokens to Cardinal.
+
+```bash
+curl --request POST \
+  --url https://api.cardinalweb3.com/api/check-transaction \
+  --header "Content-Type: application/json" \
+  --header "X-API-Key: $CARDINAL_API_KEY" \
+  --data '{
+    "from": "0xSender",
+    "to": "0xRecipient",
+    "chain": "arbitrum",
+    "token": "USDC",
+    "amount": "2500",
+    "transaction_type": "transfer"
+  }'
+```
+
+<Note>The environment variable in this example must resolve only inside your backend runtime. Do not embed its value in frontend code.</Note>
+
+## Build a canonical intent
+
+The request checked by Cardinal must represent the exact action the signer will authorise. Bind the sender, recipient, network, token, amount, transaction type, relevant contract, approval scope, permissions, and internal transaction reference.
+
+Serialise these fields deterministically and store an internal hash of the intent. Bind user confirmation, business approval, the Cardinal result, and the final transaction to that hash.
+
+Re-run the check whenever any security-relevant field changes. Never reuse a decision for a different recipient, network, token, amount, contract, approval, permission, or transaction type.
+
+## Enforce decisions safely
+
+| Result | Required handling |
+| --- | --- |
+| `ALLOW` | Continue only if every internal, compliance, and approval control also passes |
+| `REVIEW` | Pause automatic execution and apply the documented review or additional-approval process |
+| `BLOCK` | Stop the proposed transaction and preserve evidence for investigation |
+| Error, timeout, or unavailable | Fail closed; pause or queue the transaction rather than treating it as `ALLOW` |
+
+Your policy may be stricter than Cardinal. It must not silently weaken a `BLOCK` result. Preserve the decision, findings, `request_id`, intent hash, policy result, and timestamp in your audit record.
+
+## Prevent check-to-sign tampering
+
+- Generate the signing payload from the checked canonical intent.
+- Display the recipient, network, asset, amount, contract, and approval scope before signature.
+- Reject unexpected chain changes or wallet network switches.
+- Invalidate approval when the intent changes.
+- Apply a short, partner-defined freshness window for high-value transactions.
+- Re-check immediately before signature or release when required by policy.
+- Compare the broadcast transaction with the checked intent.
+- Alert on mismatches and stop automated settlement.
+
+Do not accept transaction details supplied only by an untrusted browser without server-side validation.
+
+## Wallet and signing safety
+
+Cardinal is designed as non-custodial or trust-minimised infrastructure. Users or authorised operators retain control of wallets and signing.
+
+- Never request, collect, transmit, or store a seed phrase or raw private key.
+- Use established wallet providers, hardware wallets, or approved enterprise custody infrastructure.
+- Require explicit confirmation for every signature.
+- Use multisignature or dual approval for treasury and high-value actions.
+- Separate transaction creation, approval, and release duties.
+- Apply address allowlists and value limits where appropriate.
+- Warn clearly about unlimited token approvals and unexpected permission scopes.
+- Treat a connected wallet as an address, not proof of identity or authority.
+
+## Approval controls
+
+Apply approvals based on value, asset, destination, contract, transaction type, risk result, and business context. Strong controls include separate initiator and approver roles, additional approval for `REVIEW`, multisignature thresholds, approved destinations, time-limited approvals, reapproval after an intent change, and no self-approval for high-value releases.
+
+Cardinal does not determine whether a person has legal or organisational authority. Maintain that mapping in your identity and access systems.
+
+## SafeSend controls
+
+The currently verified SafeSend experience is a controlled Arbitrum Sepolia testnet MVP.
+
+- Confirm the supported network and deployed contract address from an approved Cardinal source.
+- Bind funding and recipient confirmation to the checked intent.
+- Display the protection window and cancellation conditions before funding.
+- Restrict pilot assets and transaction values.
+- Reconcile funding, cancellation, claim, expiry, and final settlement events.
+- Do not describe testnet assets or transactions as production funds.
+- Do not use SafeSend for unrestricted mainnet settlement until production deployment and review are confirmed.
+
+## Programmable Escrow controls
+
+Programmable Escrow remains in final testing and security hardening. Before production use, confirm the exact network and contract address, audit status, remediation evidence, roles, state transitions, value caps, monitoring, and emergency procedures. Test release, refund, cancellation, expiry, milestone, dispute, access-control, signature, replay, token-behaviour, reentrancy, rounding, and denial-of-service scenarios.
+
+Complete jurisdiction-specific legal, AML, licensing, custody, and regulated-escrow review. Do not describe Cardinal Escrow as audited, licensed, regulated, unrestricted, or generally available on mainnet unless those facts are separately confirmed.
+
+## API resilience
+
+- Use short, bounded timeouts appropriate to the transaction flow.
+- Retry only transient failures using exponential backoff and jitter.
+- Make retries idempotent within your workflow.
+- Never substitute mock, stale, cached, or default `ALLOW` decisions.
+- Queue or pause transactions when Cardinal is unavailable.
+- Prevent duplicate signing or settlement after a retry.
+- Monitor latency, errors, timeouts, and decision distribution.
+- Define an escalation path for sustained failures.
+
+One Protection API request represents one transaction intent. Do not assume batch processing, webhooks, or asynchronous callbacks unless they are included in your integration agreement.
+
+## Logging and data protection
+
+Record the internal transaction ID, canonical intent hash, Cardinal `request_id`, decision and findings, policy result, initiator and approver references, timestamps, settlement reference, blockchain transaction hash, and final outcome.
+
+Do not log API keys, private keys, seed phrases, raw authentication tokens, identity documents, confidential contracts, or unnecessary personal data. Protect audit logs from alteration, restrict access, define retention periods, and synchronise system clocks.
+
+## Environment separation
+
+| Control | Development | Staging or pilot | Production |
+| --- | --- | --- | --- |
+| Credentials | Dedicated non-production key | Dedicated pilot key | Dedicated production key |
+| Networks | Local or approved testnets | Approved testnet or limited pilot network | Only approved production networks |
+| Assets | Test assets | Explicitly limited assets and values | Approved assets and limits |
+| Access | Developer roles | Named pilot operators | Least-privilege production roles |
+| Monitoring | Debug-focused | Full workflow validation | Continuous security monitoring |
+
+Never copy production secrets or personal data into a lower environment.
+
+## Deployment checklist
+
+- [ ] API keys are server-side, access-controlled, and rotatable.
+- [ ] The final signing payload is bound to the checked canonical intent.
+- [ ] `ALLOW`, `REVIEW`, `BLOCK`, timeout, and unavailable paths are tested.
+- [ ] The integration fails closed.
+- [ ] Wallet, network, recipient, token, amount, contract, and approvals are revalidated.
+- [ ] High-value actions use separation of duties or multisignature approval.
+- [ ] Logs exclude secrets and contain sufficient audit evidence.
+- [ ] Rate limits, retries, duplicate prevention, and monitoring are tested.
+- [ ] Supported networks, tokens, contract addresses, and value limits are confirmed.
+- [ ] Audit and remediation status is confirmed for the exact smart-contract deployment.
+- [ ] Incident response, key rotation, pause, escalation, and recovery procedures are documented.
+- [ ] Legal, AML, regulatory, custody, and data-protection reviews are complete.
+
+## Incident response
+
+If you suspect credential exposure, transaction tampering, unauthorised access, or contract risk:
+
+1. Pause the affected integration or transaction route.
+2. Revoke or rotate exposed credentials.
+3. Preserve logs, request IDs, intent hashes, transaction hashes, and approvals.
+4. Identify affected users, assets, networks, and time windows.
+5. Stop automated approvals and releases.
+6. Follow your incident-response, legal, compliance, notification, and recovery procedures.
+7. Contact Cardinal through the agreed support channel with non-secret diagnostic information.
+
+Never send private keys, seed phrases, passwords, authentication tokens, or live API keys in a support request.
+
+## Current security boundary
+
+The current Protection API provides pre-transaction decisioning and deterministic checks for submitted intents. SafeSend is a controlled Arbitrum Sepolia testnet MVP. Programmable Escrow is still undergoing final testing and security hardening.
+
+Cardinal does not currently replace KYC, KYB, AML, KYT, sanctions screening, source-of-funds checks, regulated custody, legal review, title verification, or licensed escrow services. Incoming-funds tracing and stolen or hacked-funds detection remain roadmap capabilities.
+
+<Card title="Next step" icon="arrow-right">
+Complete this checklist in staging, then run a controlled pilot with explicit networks, assets, values, users, and acceptance criteria before wider rollout.
+</Card>
