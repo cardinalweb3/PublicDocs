@@ -1,36 +1,290 @@
 ---
 title: "Programmable Escrow"
-description: "Non-custodial buyer and seller settlement controls."
+description: "Security-first ERC-20 settlement between buyers and sellers."
 icon: "handshake"
 ---
 
-Cardinal Programmable Escrow is designed for higher-value digital asset settlement between a buyer and seller.
+Cardinal Programmable Escrow is an on-chain settlement model for buyers and sellers handling higher-value or irreversible digital-asset transactions. Funds are locked in the escrow contract rather than a Cardinal-controlled operating wallet.
 
-## Implemented contract model
+<Warning title="Final testing and security hardening">
+  The escrow contracts implement meaningful settlement functionality, but production launch and external security hardening are still underway. Cardinal does not currently claim that these contracts are externally audited or ready for unrestricted mainnet use.
+</Warning>
 
-The current contract repository includes:
+## Implemented contract models
 
-- ERC-20 escrow creation
-- Seller acceptance
-- Buyer release
-- Refund before seller acceptance
-- Configurable release window
-- Seller claim after timeout
-- Buyer or seller dispute initiation
-- Privileged dispute resolution
-- Platform fees
-- Pause controls
-- UUPS upgradeability
+Cardinal currently has two separate ERC-20 escrow implementations:
 
-## Settlement lifecycle
+| Model | Implemented purpose |
+| --- | --- |
+| Buyer/seller Escrow | Seller acceptance, buyer release, pre-acceptance refund, timed seller claim, dispute escalation, resolver settlement, and platform fees |
+| Multisig Escrow | Seller acceptance and threshold-gated release by authorised approvers for higher-value transactions |
+
+Milestone schedules, per-escrow custom policies, appeals, a production arbitrator network, and DAO governance are product roadmap layers and are not described here as live contract functionality.
+
+## Protected settlement flow
+
+```text
+Define buyer, seller, token, amount, and acceptance deadline
+→ Run the Protection API before approval or funding
+→ Preview fee and verify the deployment
+→ Buyer approves the exact ERC-20 amount
+→ Buyer creates and funds escrow
+→ Seller accepts before the acceptance deadline
+→ Buyer releases, either party disputes, or seller claims after timeout
+→ Contract settles to the seller or refunds the buyer
+```
+
+If any transaction detail changes, repeat the protection check before requesting a new approval or contract call.
+
+## Participants and authority
+
+| Participant | Contract authority |
+| --- | --- |
+| Buyer | Creates and funds escrow, refunds before acceptance, releases accepted escrow, or raises a dispute |
+| Seller | Accepts before the deadline, raises a dispute, or claims an undisputed escrow after the release window |
+| Dispute resolver | Resolves a disputed escrow to the seller or buyer |
+| Fee manager | Updates the fee recipient and fee basis points |
+| Administrator | Manages the resolver and release window and holds administrative roles |
+| Pauser | Pauses fund-moving user functions |
+| Upgrader | Authorises contract implementation upgrades |
+
+<Warning title="Privileged roles">
+  The dispute resolver can direct disputed funds to either counterparty, and the upgrader can authorise a new implementation. Production deployments require verified role owners, multisignature controls, monitoring, documented procedures, and independent security review.
+</Warning>
+
+## Escrow lifecycle
+
+| Status | Value | Meaning |
+| --- | ---: | --- |
+| `None` | 0 | No escrow exists for the ID |
+| `Created` | 1 | Buyer funds are locked and seller acceptance is pending |
+| `Accepted` | 2 | Seller accepted and the release window is active |
+| `Released` | 3 | Seller and fee recipient were paid |
+| `Refunded` | 4 | Full escrow amount was returned to the buyer |
+| `Disputed` | 5 | Settlement is frozen pending resolver action |
 
 ```text
 Created → Accepted → Released
-   └────→ Refunded
+   └──→ Refunded
+
 Accepted → Disputed → Released or Refunded
-Accepted → Timeout → Seller claim → Released
+Accepted → Release window expires → Seller claim → Released
 ```
 
-<Warning title="Security review required">
-  The dispute resolver and upgrade roles are highly privileged. Production deployment should use appropriate multisignature controls, operational policies, monitoring, independent testing, and a formal smart-contract audit.
-</Warning>
+Terminal `Released` and `Refunded` escrows cannot be processed again.
+
+## Create and fund escrow
+
+```solidity
+createEscrow(
+  address seller,
+  address token,
+  uint256 amount,
+  uint256 acceptanceDeadline
+) returns (uint256 escrowId)
+```
+
+The buyer calls `createEscrow`. The contract requires:
+
+- A non-zero seller address
+- A non-zero ERC-20 token address
+- An amount greater than zero
+- An acceptance deadline later than the current block timestamp
+- Sufficient token balance and allowance
+
+The contract transfers the full amount from the buyer, records the fee for that escrow, and creates it with `Created` status.
+
+```text
+Protection verdict accepted
+→ Read current token allowance
+→ Approve only the required amount
+→ Wait for approval confirmation
+→ Call createEscrow(...)
+→ Store the escrow ID and funding transaction hash
+```
+
+Do not request unlimited token approval by default.
+
+## Seller acceptance
+
+```solidity
+acceptEscrow(uint256 escrowId)
+```
+
+Only the recorded seller can accept, and acceptance must occur on or before `acceptanceDeadline`.
+
+Acceptance changes the status to `Accepted` and stamps a `releaseDeadline` using the contract's current release-window configuration. The release window is bounded on-chain between one hour and 30 days.
+
+An escrow already accepted keeps its recorded release deadline if the global release-window setting later changes.
+
+## Buyer release
+
+```solidity
+releaseEscrow(uint256 escrowId)
+```
+
+Only the buyer can release an `Accepted` escrow. The buyer may release before or after the recorded deadline, provided the escrow has not moved into dispute or another terminal state.
+
+On release:
+
+```text
+seller amount = locked amount - stored fee amount
+```
+
+The fee is transferred to the configured fee recipient and the remaining amount is transferred to the recorded seller.
+
+## Refund before acceptance
+
+```solidity
+refundEscrow(uint256 escrowId)
+```
+
+Only the buyer can refund, and only while the escrow remains `Created`. The full locked amount returns to the buyer and no settlement fee is charged.
+
+Once the seller accepts, the buyer must use release or dispute rather than the pre-acceptance refund path.
+
+## Seller claim after timeout
+
+```solidity
+claimEscrow(uint256 escrowId)
+```
+
+Only the seller can claim, and only when:
+
+- The escrow remains `Accepted`
+- The release deadline has passed
+- Neither party moved it into dispute
+
+This prevents an unresponsive buyer from leaving an accepted, undisputed escrow locked indefinitely.
+
+## Raise a dispute
+
+```solidity
+disputeEscrow(uint256 escrowId)
+```
+
+The buyer or seller may dispute an `Accepted` escrow on or before the release deadline. The status becomes `Disputed`, preventing buyer release and timed seller claim.
+
+Dispute creation moves no funds and remains callable while the contract is paused. This preserves the parties' ability to stop settlement during the release window.
+
+## Resolve a dispute
+
+```solidity
+resolveDispute(uint256 escrowId, bool releaseToSeller)
+```
+
+Only the configured dispute resolver can resolve a `Disputed` escrow.
+
+| `releaseToSeller` | Result |
+| --- | --- |
+| `true` | Settle to the seller and charge the stored platform fee |
+| `false` | Refund the buyer's full amount with no platform fee |
+
+The current contract uses one resolver address. A production deployment should point that authority to an approved multisignature or controlled resolver system rather than an undocumented personal key.
+
+## Read escrow details
+
+```solidity
+getEscrow(uint256 escrowId)
+```
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `buyer` | address | Wallet that created and funded the escrow |
+| `seller` | address | Counterparty accepting and receiving settlement |
+| `token` | address | ERC-20 token locked by the contract |
+| `amount` | uint256 | Total amount locked |
+| `feeAmount` | uint256 | Fee recorded when the escrow was created |
+| `acceptanceDeadline` | uint256 | Latest timestamp for seller acceptance |
+| `releaseDeadline` | uint256 | Timestamp after which an undisputed seller claim is available |
+| `status` | enum | Current lifecycle state |
+
+Use this contract response as the source of truth for UI state and available actions.
+
+## Fees
+
+```solidity
+previewFee(uint256 amount) returns (uint256)
+```
+
+```text
+fee amount = amount × configured fee basis points ÷ 10,000
+```
+
+The stored fee is charged only on settlement to the seller. A refund returns the full escrow amount to the buyer.
+
+The active commercial rate is deployment- and pilot-specific. Applications must read verified configuration rather than hardcoding an illustrative percentage.
+
+## Multisig Escrow
+
+The separate Multisig Escrow contract supports higher-value ERC-20 settlement requiring a configurable threshold of authorised approvers.
+
+```text
+Buyer creates and funds
+→ Seller accepts
+→ Distinct authorised approvers call approveRelease(...)
+→ Approval count reaches the configured threshold
+→ Anyone may trigger releaseMultisigEscrow(...)
+→ Seller and fee recipient are paid
+```
+
+Implemented methods include:
+
+| Method | Purpose |
+| --- | --- |
+| `createMultisigEscrow` | Buyer creates and funds a threshold-controlled escrow |
+| `acceptMultisigEscrow` | Recorded seller accepts before the deadline |
+| `approveRelease` | An authorised approver records one release approval |
+| `releaseMultisigEscrow` | Releases after the threshold is met |
+| `refundMultisigEscrow` | Buyer refunds before seller acceptance |
+| `getMultisigEscrow` | Reads stored escrow state |
+| `hasApprovedRelease` | Checks whether a particular approver voted to release |
+
+An approver cannot approve the same escrow twice. The contract prevents reducing the approver set below the active threshold.
+
+<Info>
+  The current Multisig Escrow uses a global authorised approver set and global release threshold. Do not describe it as a buyer-selected panel, milestone engine, or per-escrow approval policy.
+</Info>
+
+## Contract events
+
+| Event | Purpose |
+| --- | --- |
+| `EscrowCreated` | Buyer funded a new escrow |
+| `EscrowAccepted` | Seller accepted and the release deadline was set |
+| `EscrowReleased` | Seller settlement completed |
+| `EscrowRefunded` | Funds returned to the buyer |
+| `EscrowDisputed` | A counterparty escalated the escrow |
+| `EscrowDisputeResolved` | Resolver selected the settlement outcome |
+| `FeeConfigUpdated` | Fee configuration changed |
+| `ReleaseWindowUpdated` | The global release window changed |
+| `DisputeResolverUpdated` | Resolver authority changed |
+
+Applications can index events for history and notifications, but should confirm the current state through the contract before offering an action.
+
+## Application safeguards
+
+- Run the Protection API before token approval and escrow funding.
+- Bind the verdict to the exact buyer, seller, network, token, amount, deadline, and contract.
+- Never continue from `BLOCK`.
+- Require explicit acknowledgement for `REVIEW`.
+- Verify network, proxy address, implementation address, token address, and ABI for the selected environment.
+- Display the active fee and every deadline before wallet confirmation.
+- Use on-chain timestamps rather than only local countdowns.
+- Read contract state before release, refund, claim, dispute, or resolution.
+- Prevent duplicate wallet submissions.
+- Keep API credentials and administrative keys out of frontend code.
+- Wait for confirmed transactions before displaying a terminal status.
+
+## Current production boundary
+
+Before unrestricted mainnet use, Cardinal must complete and publish the intended deployment configuration, verified proxy and implementation addresses, ABI, supported tokens, fee policy, role owners, dispute operating policy, monitoring and incident procedures, and external security review status.
+
+<CardGroup cols={2}>
+  <Card title="Protection API" icon="shield-check" href="/protection-api">
+    Run the required risk decision before escrow funding.
+  </Card>
+  <Card title="SafeSend" icon="paper-plane" href="/safesend">
+    Review the delayed cancellable transfer flow.
+  </Card>
+</CardGroup>
