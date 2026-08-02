@@ -1,0 +1,382 @@
+---
+title: "Wallet Integration"
+description: "Embed Cardinal risk decisions before wallet signing."
+icon: "wallet"
+---
+
+Wallet providers can use Cardinal as a pre-signature control layer: construct the exact transaction intent, request an explainable risk decision, show the result clearly, and allow signing only when the decision and wallet policy permit it.
+
+<Warning title="Current pilot scope">
+  Cardinal's public wallet experience is a connected MVP, not a production wallet SDK. The active connector is MetaMask on Arbitrum Sepolia for the SafeSend testnet flow. WalletConnect, Coinbase Wallet, Rabby, mobile-wallet packaging, browser extensions, and broader production networks remain future integration work.
+</Warning>
+
+## Integration outcome
+
+```text
+Connect wallet
+→ Confirm account and network
+→ Compose exact transaction intent
+→ Send intent to the wallet backend
+→ Backend calls the Protection API
+→ Render ALLOW, REVIEW, or BLOCK with findings
+→ Apply wallet policy
+→ Route to direct signing, SafeSend, Escrow, or stop
+→ Confirm and record the on-chain result
+```
+
+Cardinal does not hold the user's private keys. The connected wallet remains responsible for account access, user consent, and transaction signing.
+
+## Current Cardinal wallet flow
+
+| Capability | Current status |
+| --- | --- |
+| Public wallet experience | Connected MVP |
+| Active connector | MetaMask |
+| Pilot network | Arbitrum Sepolia |
+| Pilot asset | Test USDC/TUSDC |
+| Risk check | Connected Protection API |
+| Decision model | `ALLOW`, `REVIEW`, `BLOCK` |
+| Protected settlement | SafeSend testnet path |
+| WalletConnect | Coming soon |
+| Coinbase Wallet | Coming soon |
+| Rabby | Coming soon |
+| Production mainnet wallet SDK | Not currently live |
+
+The Protection API accepts multiple chain slugs, but that API input coverage must not be presented as identical production wallet or contract deployment coverage.
+
+## Recommended architecture
+
+```text
+Wallet UI
+├─ Wallet provider and signer
+├─ Transaction composer
+├─ Verdict and findings UI
+└─ Settlement status UI
+
+Wallet backend
+├─ Authentication and canonical intent
+├─ Cardinal API key
+├─ POST /api/check-transaction
+├─ Wallet policy
+└─ Decision and outcome evidence
+
+On-chain layer
+├─ Direct wallet transaction
+├─ SafeSend
+└─ Programmable Escrow
+```
+
+The browser may know public chain configuration, verified contract addresses, public token addresses, and risk results. It must not receive the Cardinal API key, provider secrets, private keys, deployer keys, database credentials, or privileged contract-role credentials.
+
+## 1. Connect the wallet
+
+The current MVP uses an injected MetaMask provider and Ethers `BrowserProvider`.
+
+```typescript
+import { ethers } from "ethers";
+
+export async function connectMetaMask() {
+  if (!window.ethereum) {
+    throw new Error("MetaMask was not detected.");
+  }
+
+  await window.ethereum.request({ method: "eth_requestAccounts" });
+
+  const provider = new ethers.BrowserProvider(window.ethereum);
+  const signer = await provider.getSigner();
+  const network = await provider.getNetwork();
+
+  return {
+    provider,
+    signer,
+    address: await signer.getAddress(),
+    chainId: Number(network.chainId),
+  };
+}
+```
+
+In production wallet code:
+
+- Request accounts only after a deliberate user action.
+- Handle the user rejecting the connection.
+- Handle an already-pending wallet request.
+- Re-read the selected account and chain before every protected action.
+- Subscribe to account and chain changes according to the wallet provider's supported interface.
+- Invalidate drafts and prior risk decisions after an account or network change.
+- Resolve the intended provider carefully when several injected extensions are installed.
+
+Do not treat locally persisted connection state as proof that a signer is still available.
+
+## 2. Enforce the pilot network
+
+The current SafeSend pilot targets Arbitrum Sepolia.
+
+```typescript
+const ARBITRUM_SEPOLIA = {
+  chainId: "0x66eee",
+  chainName: "Arbitrum Sepolia",
+  rpcUrls: ["https://sepolia-rollup.arbitrum.io/rpc"],
+  blockExplorerUrls: ["https://sepolia.arbiscan.io"],
+  nativeCurrency: {
+    name: "Arbitrum Sepolia Ether",
+    symbol: "ETH",
+    decimals: 18,
+  },
+};
+
+export async function switchToPilotNetwork() {
+  try {
+    await window.ethereum.request({
+      method: "wallet_switchEthereumChain",
+      params: [{ chainId: ARBITRUM_SEPOLIA.chainId }],
+    });
+  } catch (error: any) {
+    if (error?.code !== 4902) throw error;
+
+    await window.ethereum.request({
+      method: "wallet_addEthereumChain",
+      params: [ARBITRUM_SEPOLIA],
+    });
+  }
+}
+```
+
+Verify the chain again immediately before approval and settlement. Never infer the active network from an earlier screen or saved application state.
+
+For partner integrations, use only the network configuration supplied and verified for that pilot. Do not copy a testnet deployment into production.
+
+## 3. Build the transaction intent
+
+The wallet should create one canonical intent from the final review screen.
+
+```typescript
+type WalletProtectionIntent = {
+  from_address: string;
+  to_address: string;
+  chain: string;
+  token: string;
+  amount: number;
+  transaction_type?: "safe_send" | "approval" | "contract_interaction" | "swap" | "mint";
+  contract_address?: string;
+  contract_verified?: boolean;
+  approval_amount?: string;
+  permissions?: string[];
+};
+```
+
+Include all material details available to the wallet. For an approval or contract interaction, include the contract, approval amount, and requested permissions when known.
+
+The intent sent to Cardinal must match what the wallet later displays and signs.
+
+## 4. Use a server-side proxy
+
+The current Cardinal web MVP sends browser requests to an internal Next.js route:
+
+```text
+Wallet browser
+→ POST /api/protection/check
+→ Next.js server route
+→ POST <Cardinal API>/api/check-transaction
+```
+
+Only the server route attaches `x-api-key`.
+
+```typescript
+export async function POST(request: Request) {
+  const intent = await request.json();
+
+  const response = await fetch(
+    `${process.env.CARDINAL_API_URL}/api/check-transaction`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": process.env.CARDINAL_API_KEY!,
+      },
+      body: JSON.stringify(intent),
+    },
+  );
+
+  const body = await response.json();
+
+  return Response.json(body, { status: response.status });
+}
+```
+
+Validate and authenticate the browser request before forwarding it. Never use a `NEXT_PUBLIC_*` variable for the Cardinal API key.
+
+## 5. Render the verdict
+
+The wallet receives a structured result containing a score, level, warnings, findings, and recommended action.
+
+| Decision | Wallet behaviour |
+| --- | --- |
+| `ALLOW` | Continue only if wallet policy also permits the exact transaction |
+| `REVIEW` | Show every finding and require explicit acknowledgement |
+| `BLOCK` | Disable signing and protected settlement |
+| API failure | Show an error and keep signing disabled |
+
+Warnings must be prominent and understandable. Do not hide risk findings behind expandable fine print or show a green confirmation merely because the numeric score is low.
+
+Use `recommended_action` as the decision, `findings` as the reasons, and `risk_score` as the summary.
+
+## 6. Bind the verdict to the signature
+
+Create a fingerprint or immutable record of the checked intent.
+
+```typescript
+type CheckedIntent = {
+  requestId: string;
+  checkedAt: string;
+  account: string;
+  chainId: number;
+  recipient: string;
+  token: string;
+  amountBaseUnits: string;
+  transactionType: string;
+  contractAddress?: string;
+  approvalAmount?: string;
+  permissions?: string[];
+  recommendedAction: "ALLOW" | "REVIEW" | "BLOCK";
+};
+```
+
+Before opening the wallet confirmation:
+
+1. Re-read the active account and chain.
+2. Compare the final transaction to the checked intent.
+3. Invalidate the result if a protected field changed.
+4. Confirm that `REVIEW` acknowledgement is still present.
+5. Confirm that neither Cardinal nor wallet policy returned `BLOCK`.
+6. Request a fresh check when the wallet's freshness policy requires it.
+
+A risk result for one transaction must never authorise a different transaction.
+
+## 7. Display the signing summary
+
+Before any wallet request, show:
+
+- Full or unambiguously expandable recipient address
+- Sender account
+- Active network
+- Token symbol and verified token address
+- Human-readable amount and exact base-unit amount
+- Transaction type
+- Contract address when applicable
+- Approval amount and permissions
+- Cardinal decision and findings
+- Settlement route
+- Service fee and network gas estimate
+- Cancellation, release, acceptance, or dispute deadlines when applicable
+
+Never encourage blind signing or rely only on a shortened address where different recipients could appear identical.
+
+## 8. Route the transaction
+
+```text
+BLOCK
+→ stop
+
+REVIEW without acknowledgement
+→ stop
+
+ALLOW or acknowledged REVIEW
+→ apply wallet policy
+   ├─ direct transaction
+   ├─ SafeSend testnet transfer
+   └─ controlled Escrow integration
+```
+
+The current public wallet experience demonstrates SafeSend on testnet. Direct-settlement and Escrow routing must use partner-approved, verified environments and must not be inferred from the demo configuration.
+
+## SafeSend wallet sequence
+
+```text
+Compose recipient and amount
+→ Cardinal protection check
+→ Accept ALLOW or acknowledge REVIEW
+→ Read current token allowance
+→ Read SafeSend fee through previewFee
+→ Estimate gas from the target network
+→ Approve exact amount when required
+→ Wait for approval confirmation
+→ Call createSafeSend(...)
+→ Store transfer ID and transaction hash
+→ Read Pending, Cancelled, or Released state on-chain
+```
+
+The current pilot estimates network gas client-side with a safety buffer. Refresh stale estimates and distinguish estimated gas from actual gas used.
+
+## Wallet event handling
+
+Handle at least:
+
+| Event | Required wallet response |
+| --- | --- |
+| Account changes | Clear signer-dependent drafts and prior decisions |
+| Chain changes | Revalidate support and clear incompatible state |
+| Provider disconnect | Disable protected actions |
+| User rejects request | Return to a safe incomplete state |
+| Transaction replaced | Track the replacement hash |
+| Transaction reverted | Read allowance and contract state before retrying |
+| Confirmation delayed | Show pending without claiming success |
+
+Event names and support differ by provider. Follow the provider's official interface and test with multiple extensions installed.
+
+## Error handling
+
+| Condition | User-facing behaviour |
+| --- | --- |
+| MetaMask absent | Explain that MetaMask is required for the current pilot |
+| Another extension controls the injected provider | Ask the user to select or enable MetaMask |
+| Connection rejected | Return to disconnected state |
+| Request already pending | Ask the user to open the wallet and finish the pending request |
+| Wrong network | Offer the verified pilot network switch |
+| Protection API unavailable | Show a real error and stop |
+| `BLOCK` | Do not expose a signing continuation |
+| Approval rejected or failed | Do not submit settlement |
+| Settlement failed | Read current on-chain state before retrying |
+
+Live mode must never silently fall back to demo verdicts.
+
+## Incoming-funds and receiver screening
+
+Cardinal's current MVP can evaluate transaction intent and local wallet/contract signals. Full incoming-funds provenance—such as tracing whether received assets originated from theft, hacks, sanctions exposure, or illicit flows—is a planned threat-intelligence and compliance capability.
+
+<Warning>
+  Do not present receiver stolen-funds detection, full source-of-funds tracing, sanctions screening, or continuous AML monitoring as live wallet functionality until the data providers, policies, accuracy controls, and production workflow are implemented and verified.
+</Warning>
+
+A future receiver-protection flow should screen the sender and relevant fund path before a high-value recipient accepts settlement, while keeping results explainable and suitable for partner compliance review.
+
+## Security checklist
+
+Before enabling a wallet pilot:
+
+- Keep users in control of their keys and signatures.
+- Keep the Cardinal API key server-side.
+- Verify network, token, contract, ABI, proxy, and implementation for the selected environment.
+- Bind each decision to the exact final transaction.
+- Block signing for `BLOCK` and all failed checks.
+- Require explicit acknowledgement for `REVIEW`.
+- Avoid unlimited approvals by default.
+- Use integer base units and verified token decimals.
+- Prevent duplicate wallet requests and submissions.
+- Revalidate after account or chain changes.
+- Show fees, gas, addresses, permissions, and deadlines before signing.
+- Record request ID, intent, decision, acknowledgement, transaction hash, and outcome.
+- Never store seed phrases, private keys, or unnecessary personal data.
+- Keep demo and live modes visibly separate.
+
+## Production boundary
+
+A production wallet integration requires a supported connector strategy, verified networks and assets, contract and ABI verification, secure backend deployment, partner authentication, shared rate limiting, production intelligence providers, monitoring, incident response, external contract security review status, privacy and data-retention controls, and a tested release process.
+
+<CardGroup cols={2}>
+  <Card title="Central Integration Guide" icon="code-branch" href="/integration-guide">
+    Review the complete Cardinal routing architecture.
+  </Card>
+  <Card title="SafeSend" icon="paper-plane" href="/safesend">
+    Review the current protected testnet transfer.
+  </Card>
+</CardGroup>
