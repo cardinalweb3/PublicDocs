@@ -28,15 +28,8 @@ Call Cardinal after the withdrawal intent is final, but before signing or broadc
 
 Use the Protection API endpoint documented in the [Protection API](/protection-api) reference:
 
-```bash
-curl -X POST "$CARDINAL_API_URL/api/check-transaction" \  -H "Content-Type: application/json" \  -H "x-api-key: $CARDINAL_API_KEY" \  -d '{
-    "from": "0xExchangeHotWallet",
-    "to": "0xCustomerDestination",
-    "chain": "arbitrum",
-    "token": "USDC",
-    "amount": "2500",
-    "transaction_type": "transfer"
-  }'
+``bash
+curl -X POST "$CARDINAL_API_URL/api/check-transaction" -H "Content-Type: application/json" -H "x-api-key: $CARDINAL_API_KEY" -d '{"from":"0xExchangeHotWallet","to":"0xCustomerDestination","chain":"arbitrum","token":"USDC","amount":"2500","transaction_type":"transfer"}'
 ```
 
 Required fields are `from`, `to`, `chain`, `token`, and `amount`. Include `transaction_type`, `contract_address`, `contract_verified`, `approval_amount`, and `permissions` when they describe the proposed action.
