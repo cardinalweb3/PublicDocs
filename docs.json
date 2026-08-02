@@ -73,7 +73,8 @@
         "icon": "book-open",
         "pages": [
           "pilot-onboarding",
-          "faq-troubleshooting"
+          "faq-troubleshooting",
+          "changelog"
         ]
       }
     ]
