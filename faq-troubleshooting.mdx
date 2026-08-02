@@ -1,0 +1,320 @@
+---
+title: "FAQ & Troubleshooting"
+description: "Answers and diagnostic steps for Cardinal products, API integrations, wallets, SafeSend, Escrow, and pilots."
+---
+
+Use this guide to understand Cardinal's current capabilities and resolve common integration and pilot issues.
+
+<Warning>
+Never include API keys, private keys, seed phrases, passwords, authentication tokens, identity documents, or confidential transaction records in screenshots, logs, or support requests.
+</Warning>
+
+## General questions
+
+### What is Cardinal?
+
+Cardinal is security infrastructure for digital-asset transactions. It evaluates a proposed transaction before signature or settlement and returns an explainable `ALLOW`, `REVIEW`, or `BLOCK` decision. Partners can combine this result with internal policy, approvals, SafeSend, or programmable Escrow.
+
+### What makes Cardinal different?
+
+Cardinal connects pre-transaction risk decisioning to the way a transaction settles. Instead of returning only a score, the integration can continue, pause for review, require additional approval, route through a protected transfer, route into Escrow, or stop.
+
+### Is Cardinal custodial?
+
+Cardinal is designed as non-custodial or trust-minimised infrastructure. Users and authorised operators retain control of wallets and signing. Cardinal does not ask for private keys or seed phrases and does not sign transactions on a user's behalf.
+
+### Does Cardinal guarantee that a transaction is safe?
+
+No. Cardinal reduces risk using the information and controls available at the time of the check, but it cannot guarantee complete protection. Users and partners remain responsible for verifying transaction details, managing keys, applying approvals, and deciding whether to proceed.
+
+### Does Cardinal provide KYC, AML, sanctions, or source-of-funds checks?
+
+Not as part of the currently documented Protection API. Cardinal does not replace KYC, KYB, AML, KYT, sanctions screening, source-of-funds or source-of-wealth checks, regulated custody, legal review, title verification, or licensed escrow.
+
+Incoming-funds tracing and stolen or hacked-funds detection remain roadmap capabilities and must not be treated as active screening services.
+
+### What is currently available?
+
+- Public Cardinal platform and wallet-connected experience
+- Protection API pre-transaction decisioning
+- Explainable `ALLOW`, `REVIEW`, and `BLOCK` results
+- Controlled SafeSend flow on Arbitrum Sepolia testnet
+- Integration and pilot documentation
+
+Programmable Escrow remains in final testing and security hardening. Confirm every product, network, contract, audit, and production status for your specific integration.
+
+## Protection API questions
+
+### When should I call the Protection API?
+
+Call it after the complete transaction intent is known and immediately before the wallet signature, broadcast, SafeSend funding, or Escrow release. Re-check when the sender, recipient, network, token, amount, contract, approval scope, permissions, or transaction type changes.
+
+### Which fields are required?
+
+The current request requires:
+
+- `from`
+- `to`
+- `chain`
+- `token`
+- `amount`
+
+Use `transaction_type` and relevant optional fields such as `contract_address`, `contract_verified`, `approval_amount`, and `permissions` when they describe the proposed action.
+
+### What do ALLOW, REVIEW, and BLOCK mean?
+
+| Decision | Meaning | Minimum handling |
+| --- | --- | --- |
+| `ALLOW` | No blocking condition was returned for the submitted intent | Continue only if partner controls also pass |
+| `REVIEW` | The intent needs additional attention | Pause automatic execution and follow the review policy |
+| `BLOCK` | A blocking condition was returned | Stop the proposed transaction |
+
+An `ALLOW` decision is not a warranty or a replacement for the partner's security and compliance controls.
+
+### Can I override a BLOCK decision?
+
+Your integration should not silently weaken a `BLOCK`. Stop the proposed intent, preserve the evidence, and follow your documented investigation process. If a new or corrected intent is created, submit it as a new check.
+
+### Can I cache a decision?
+
+Do not reuse a decision for a changed intent. For higher-value transactions, use a short partner-defined freshness window and re-check immediately before signature or release when required by policy.
+
+### Does the API support batch requests or webhooks?
+
+Each public request represents one transaction intent. Do not assume batch endpoints, webhooks, or asynchronous callbacks unless they are included in your partner agreement.
+
+## API troubleshooting
+
+### I receive an authentication error
+
+Check that:
+
+1. The API key is present only in the trusted backend.
+2. The expected authentication header is used.
+3. The key belongs to the correct environment.
+4. The key has no extra spaces, quotation marks, or line breaks.
+5. The credential has not expired, been revoked, or been rotated.
+
+Do not print the full key. Log only a non-secret credential reference and the response status.
+
+### I receive a validation error
+
+Confirm:
+
+- Every required field is present.
+- Address values use the expected format.
+- `chain` uses a supported slug.
+- `amount` is a positive string value.
+- `transaction_type` matches the proposed action.
+- Contract and permission fields describe the actual signing payload.
+- The request body is valid JSON and uses `Content-Type: application/json`.
+
+Preserve the non-sensitive response body and `request_id`, if returned.
+
+### I receive a 429 response
+
+The integration has reached a rate limit.
+
+- Pause automatic retries.
+- Use exponential backoff with jitter.
+- Respect any retry guidance in the response.
+- Prevent duplicate signing or settlement.
+- Review traffic for accidental loops or repeated checks.
+
+Do not bypass Cardinal or substitute an automatic `ALLOW`.
+
+### The request times out
+
+- Use a short, bounded timeout appropriate to the workflow.
+- Retry only when your policy permits it.
+- Make the internal operation idempotent.
+- Keep the transaction paused during retry.
+- Prevent the user from signing a changed or unchecked intent.
+- Escalate sustained latency through the agreed support channel.
+
+Treat timeout or unavailable service as fail-closed, not `ALLOW`.
+
+### The API returns an unexpected decision
+
+First confirm that the submitted intent exactly matches the proposed transaction. Record:
+
+- Internal transaction ID
+- Cardinal `request_id`
+- Canonical intent hash
+- Non-secret request fields
+- Decision and findings
+- Timestamp
+- Expected result and reason
+
+Do not resubmit modified data simply to obtain a preferred result. If the result still appears incorrect, send the non-secret evidence through the agreed support channel.
+
+### The decision and signed transaction do not match
+
+Stop automated settlement. Compare the recipient, network, token, amount, transaction type, contract, approval amount, and permissions.
+
+Invalidate the earlier approval, rebuild the canonical intent, run a new Cardinal check, and require fresh user or business approval.
+
+## Networks and tokens
+
+### Which network slugs can be submitted?
+
+Current documented input slugs include:
+
+- `ethereum`
+- `bnb`
+- `polygon`
+- `base`
+- `arbitrum`
+- `optimism`
+- `solana`
+
+An accepted slug does not mean that every asset, feature, contract, jurisdiction, or settlement route is production-approved on that network.
+
+### Why is the wallet on the wrong network?
+
+The connected wallet network and intended transaction network differ.
+
+1. Stop the flow.
+2. Display the required network clearly.
+3. Request a wallet network switch.
+4. Re-read the active chain from the wallet.
+5. Rebuild and re-check the transaction intent.
+
+Never change the intended network silently.
+
+### Why is a token not recognised?
+
+Confirm the network, token symbol, contract address, decimals, and asset support for the specific environment. Token symbols are not globally unique; use the verified contract address when applicable.
+
+Do not proceed with a lookalike or unverified token contract.
+
+## Wallet troubleshooting
+
+### The wallet will not connect
+
+- Confirm a supported wallet is installed and unlocked.
+- Confirm the user approved the connection request.
+- Refresh the application and retry once.
+- Check that another connection request is not already open.
+- Confirm the browser or mobile wallet supports the selected network.
+- Disable conflicting wallet extensions during diagnosis.
+
+Never ask the user to share a seed phrase or private key.
+
+### The user changed accounts
+
+Treat the new address as a new sender or participant. Clear stale transaction state, rebuild the canonical intent, run a new check, and require fresh confirmation.
+
+### The user rejected the signature
+
+No transaction should be broadcast. Keep the workflow in a cancelled or awaiting-confirmation state according to partner policy. Do not repeatedly prompt without a clear user action.
+
+### A transaction remains pending
+
+Check the blockchain explorer for the intended network, transaction hash, sender nonce, and gas conditions. Do not create a duplicate transfer automatically.
+
+Cardinal's pre-transaction result does not confirm blockchain inclusion or finality. Reconcile the transaction outcome separately.
+
+## SafeSend questions
+
+### What is SafeSend?
+
+SafeSend is designed for delayed and cancellable digital-asset transfers. It introduces a protection window before settlement becomes final.
+
+### Is SafeSend live on mainnet?
+
+The currently verified flow is a controlled Arbitrum Sepolia testnet MVP. Do not use it for unrestricted production funds or describe it as general mainnet availability until the exact deployment and readiness status are confirmed.
+
+### Can every SafeSend transfer be cancelled?
+
+Cancellation depends on the configured transfer state and protection window. A transfer cannot be assumed cancellable after it becomes claimable, claimed, expired, or otherwise reaches a terminal contract state. The interface must show the current state and permitted actions.
+
+### A SafeSend action is unavailable
+
+Confirm:
+
+- The wallet is connected to the approved network.
+- The connected address has the required role.
+- The transfer is in the expected state.
+- The protection window has not changed or expired.
+- The transaction has sufficient testnet gas.
+- The contract address matches the approved deployment.
+- A previous transaction is not still pending.
+
+Do not force a state transition outside the contract rules.
+
+### Testnet funds do not appear
+
+Confirm the wallet address, Arbitrum Sepolia network, token contract, transaction hash, and block-confirmation status. Testnet tokens have no production value and may require the approved faucet or pilot distribution process.
+
+## Escrow questions
+
+### Is Programmable Escrow production-ready?
+
+Programmable Escrow remains in final testing and security hardening. Do not describe it as audited, licensed, regulated, unrestricted, or generally available on mainnet unless those facts are confirmed for the exact deployment.
+
+### Who controls Escrow funds?
+
+Cardinal Escrow is designed as non-custodial or trust-minimised smart-contract infrastructure. The applicable contract roles and state determine funding, approval, release, refund, cancellation, expiry, and dispute actions.
+
+Cardinal is not a substitute for a regulated escrow provider where one is legally required.
+
+### Why can funds not be released?
+
+Check:
+
+- The connected address has the required role.
+- Funding is confirmed.
+- Required approvals or multisignature threshold are complete.
+- The release condition or milestone is satisfied.
+- The Escrow has not expired, been cancelled, refunded, or disputed.
+- The network and contract address are correct.
+- The release transaction has sufficient gas and is not already pending.
+
+Never bypass contract roles or required approvals.
+
+### How are disputes resolved?
+
+Dispute handling must be defined in the commercial agreement and the exact pilot or contract design. Cardinal does not independently determine legal ownership, contractual performance, title, or entitlement to funds.
+
+## Pilot questions
+
+### How long is a Cardinal pilot?
+
+A typical design-partner pilot runs for **60–90 days**. The signed pilot plan defines the exact duration, scope, values, participants, success criteria, and commercial terms.
+
+### Can we use real funds during a pilot?
+
+Only when the signed scope, exact product and deployment, security review, legal and compliance approvals, value limits, and operational readiness permit it. A testnet or pre-production pilot must use test assets.
+
+### What should we measure?
+
+Common measures include integration time, decision distribution, false positives, review time, approval time, API latency, errors, timeouts, prevented wrong-network or altered-intent attempts, reconciliation completeness, abandonment, support volume, and protected transaction value.
+
+Do not claim fraud-loss reduction without a defensible baseline and verified outcome data.
+
+## Diagnostic checklist
+
+Before contacting support:
+
+- [ ] Confirm the current product and environment.
+- [ ] Confirm the network, token, contract address, and wallet.
+- [ ] Verify the final canonical intent.
+- [ ] Record the Cardinal `request_id`.
+- [ ] Record the internal transaction ID and intent hash.
+- [ ] Capture the response status and non-secret error details.
+- [ ] Check whether the issue is reproducible.
+- [ ] Check whether another request or blockchain transaction is pending.
+- [ ] Remove secrets and personal data from all evidence.
+- [ ] Pause the affected flow if transaction safety is uncertain.
+
+## Contact support
+
+For integration, pilot, or product assistance:
+
+- **Email:** [contact@cardinalweb3.com](mailto:contact@cardinalweb3.com)
+- **Telephone:** [+971 58 512 0045](tel:+971585120045)
+
+Include the affected environment, product, network, approximate time, Cardinal `request_id`, internal reference, non-secret error details, reproduction steps, and business impact.
+
+For a suspected security incident, first pause the affected flow, rotate exposed credentials, preserve evidence, and follow your organisation's incident-response process.
