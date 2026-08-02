@@ -1,22 +1,38 @@
 ---
 title: "SafeSend"
-description: "Protected token transfers with risk checks before settlement."
+description: "Delayed, cancellable ERC-20 transfers protected before settlement."
 icon: "paper-plane"
 ---
 
-SafeSend is Cardinal's protected transfer flow. It evaluates the intended transfer before token approval or contract execution.
+SafeSend combines Cardinal's pre-transaction risk decision with a delayed ERC-20 settlement path. It gives the sender a cancellation window before the transfer becomes releasable.
 
-## Current flow
+<Warning title="Connected testnet MVP">
+  SafeSend currently operates as a connected testnet flow using MetaMask, Arbitrum Sepolia, test USDC, the Protection API, and a SafeSend testnet contract path. It is not presented as audited mainnet settlement.
+</Warning>
+
+## Why SafeSend exists
+
+A standard token transfer becomes difficult or impossible to reverse once confirmed. SafeSend introduces two protection points:
+
+1. The Protection API evaluates the complete transaction intent before token approval or contract execution.
+2. The SafeSend contract holds the ERC-20 tokens until a future release time, allowing the sender to cancel while the transfer remains pending.
+
+## Protected flow
 
 ```text
 Connect wallet
-→ Enter recipient and amount
-→ Run Cardinal protection scan
-→ Receive ALLOW, REVIEW, or BLOCK
+→ Enter recipient, token, amount, and release time
+→ Verify the selected network
+→ POST /api/check-transaction
+→ Render ALLOW, REVIEW, or BLOCK with findings
 → Preview fee and gas
-→ Approve token when required
+→ Request token approval when required
 → Create the SafeSend transfer
+→ Pending cancellation window
+→ Cancel and refund, or release after the delay
 ```
+
+The Protection API call must happen before any token approval or SafeSend contract transaction.
 
 ## Pilot environment
 
@@ -25,9 +41,181 @@ Connect wallet
 | Wallet | MetaMask-first |
 | Network | Arbitrum Sepolia |
 | Asset | Test USDC |
-| Protection | Connected Protection API |
+| Risk decision | Connected Protection API |
 | Settlement | SafeSend testnet contract path |
+| Mainnet | Not currently documented as live |
+| External audit | Not currently claimed |
 
-<Warning title="Testnet pilot">
-  SafeSend is not currently presented as audited mainnet settlement. Final contract verification, deployed addresses, ABI confirmation, monitoring, security review, and production fee controls must be completed before mainnet use.
+Contract addresses, ABIs, token addresses, fee configuration, and supported mainnet deployments will be published only after they are verified for the relevant environment.
+
+## Protection decision
+
+SafeSend uses the `recommended_action` returned by `POST /api/check-transaction`.
+
+| Decision | SafeSend behaviour |
+| --- | --- |
+| `ALLOW` | The application may continue to approval and transfer creation |
+| `REVIEW` | Display all findings and require explicit acknowledgement before continuing |
+| `BLOCK` | Stop before token approval or contract execution |
+
+<Info>
+  If the Protection API is unavailable, SafeSend must show a real error. A connected integration must never silently fall back to mock data or a default `ALLOW`.
+</Info>
+
+Re-run the check if the sender, recipient, network, token, amount, contract, approval amount, permissions, or release configuration changes.
+
+## Transfer lifecycle
+
+A SafeSend transfer has four contract states:
+
+| Status | Value | Meaning |
+| --- | ---: | --- |
+| `None` | 0 | No transfer exists for the ID |
+| `Pending` | 1 | Tokens are locked and the release time has not completed settlement |
+| `Cancelled` | 2 | The sender cancelled and the locked amount was refunded |
+| `Released` | 3 | The recipient amount and configured platform fee were settled |
+
+A transfer can move only from `Pending` to `Cancelled` or `Released`. A cancelled or released transfer cannot be processed again.
+
+## Create a transfer
+
+```solidity
+createSafeSend(
+  address recipient,
+  address token,
+  uint256 amount,
+  uint256 releaseTime
+) returns (uint256 transferId)
+```
+
+The contract requires:
+
+- A non-zero recipient address
+- A non-zero ERC-20 token address
+- An amount greater than zero
+- A release time later than the current block timestamp
+- Sufficient token allowance and balance
+
+The full `amount` is transferred from the sender into the SafeSend contract. The contract records the sender, recipient, token, total amount, calculated fee, release time, and `Pending` status.
+
+### Approval sequence
+
+```text
+Protection verdict accepted
+→ Read current allowance
+→ Approve only when required
+→ Wait for approval confirmation
+→ Call createSafeSend(...)
+→ Record the returned transfer ID and transaction hash
+```
+
+Do not request an unlimited approval by default. The frontend should clearly show the token, amount, recipient, release time, fee preview, network, and contract destination before either wallet prompt.
+
+## Cancel a transfer
+
+```solidity
+cancelSafeSend(uint256 transferId)
+```
+
+Cancellation succeeds only when:
+
+- The transfer exists
+- Its status is `Pending`
+- The caller is the original sender
+- The current block timestamp is earlier than `releaseTime`
+
+On cancellation, the status becomes `Cancelled` and the full locked amount is returned to the sender.
+
+<Warning>
+  The sender cannot cancel after the release time has been reached. Applications should show the on-chain release time rather than relying only on a local countdown.
 </Warning>
+
+## Release a transfer
+
+```solidity
+releaseSafeSend(uint256 transferId)
+```
+
+Release succeeds only when the transfer exists, remains `Pending`, and its release time has been reached.
+
+Anyone may call the release function after that time. This allows settlement to be triggered by the recipient, sender, or an authorised automation service without giving that caller control over the destination or amount.
+
+On release:
+
+```text
+recipient amount = locked amount - stored fee amount
+```
+
+The fee is transferred to the configured fee recipient and the remaining amount is transferred to the recorded recipient.
+
+## Read transfer details
+
+```solidity
+getSafeSend(uint256 transferId)
+```
+
+The returned transfer contains:
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `sender` | address | Wallet that created and funded the transfer |
+| `recipient` | address | Wallet that receives funds after release |
+| `token` | address | ERC-20 token held by the contract |
+| `amount` | uint256 | Total token amount locked |
+| `feeAmount` | uint256 | Fee recorded when the transfer was created |
+| `releaseTime` | uint256 | Unix timestamp when release becomes available |
+| `status` | enum | `None`, `Pending`, `Cancelled`, or `Released` |
+
+Use the contract response as the source of truth when showing transfer status.
+
+## Preview the fee
+
+```solidity
+previewFee(uint256 amount) returns (uint256)
+```
+
+The contract calculates the fee in basis points:
+
+```text
+fee amount = amount × configured fee basis points ÷ 10,000
+```
+
+The active pilot fee configuration is environment-specific. Read it from the verified deployment rather than hardcoding an illustrative rate.
+
+## Contract events
+
+| Event | When emitted |
+| --- | --- |
+| `SafeSendCreated` | A new transfer is funded and stored as `Pending` |
+| `SafeSendCancelled` | The sender cancels before release |
+| `SafeSendReleased` | Settlement completes after release time |
+| `FeeConfigUpdated` | An authorised fee manager changes fee configuration |
+| `OwnershipTransferred` | Administrative roles move to a new admin |
+
+Partner applications can index the first three events to keep transfer histories synchronised, but should confirm current state with `getSafeSend`.
+
+## Application safeguards
+
+- Bind every protection verdict to the exact transaction intent that was checked.
+- Never continue from `BLOCK`.
+- Require explicit acknowledgement for `REVIEW`.
+- Verify the wallet network before every approval and contract call.
+- Display addresses in full or provide an unambiguous expansion and copy action.
+- Display token decimals correctly and avoid floating-point arithmetic.
+- Wait for confirmed transactions before updating the final status.
+- Prevent duplicate submission while a wallet request is pending.
+- Treat contract reads as the source of truth for cancellation and release eligibility.
+- Keep Protection API credentials on a trusted backend.
+
+## Current production boundary
+
+Before mainnet use, Cardinal must publish and verify the intended network deployment, proxy and implementation addresses, ABI, supported tokens, active fee policy, monitoring process, external security review status, and production incident controls.
+
+<CardGroup cols={2}>
+  <Card title="Protection API" icon="shield-check" href="/protection-api">
+    Review the risk decision that must run before SafeSend.
+  </Card>
+  <Card title="Implementation status" icon="list-check" href="/product-status">
+    See what is live, in testing, and planned.
+  </Card>
+</CardGroup>
