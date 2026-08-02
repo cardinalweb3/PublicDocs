@@ -9,96 +9,21 @@
   },
   "favicon": "https://app.cardinalweb3.com/favicon.svg",
   "navigation": {
-    "pages": [
-      {
-        "group": "Getting Started",
-        "pages": [
-          "index",
-          "quickstart"
-        ]
-      }
-    ],
-    "global": {
-      "anchors": [
-        {
-          "anchor": "Cardinal App",
-          "icon": "arrow-up-right-from-square",
-          "href": "https://app.cardinalweb3.com"
-        },
-        {
-          "anchor": "GitHub",
-          "icon": "github",
-          "href": "https://github.com/Cardinal-Web3"
-        }
-      ]
-    },
-    "groups": [
-      {
-        "group": "Getting Started",
-        "pages": [
-          "index",
-          "quickstart"
-        ]
-      },
-      {
-        "group": "Products",
-        "icon": "grid-2",
-        "pages": [
-          "protection-api",
-          "safesend",
-          "escrow",
-          "product-status"
-        ]
-      }
-    ]
+    "pages": [{"group": "Getting Started","pages": ["index","quickstart"]}],
+    "global": {"anchors": [{"anchor":"Cardinal App","icon":"arrow-up-right-from-square","href":"https://app.cardinalweb3.com"},{"anchor":"GitHub","icon":"github","href":"https://github.com/Cardinal-Web3"}]},
+    "groups": [{"group":"Getting Started","pages":["index","quickstart"]},{"group":"Products","icon":"grid-2","pages":["protection-api","safesend","escrow","product-status"]}]
   },
   "logo": {
     "light": "/logo/cardinal-logo-light.png",
     "dark": "/logo/cardinal-logo-dark.png",
     "href": "https://app.cardinalweb3.com"
   },
-  "navbar": {
-    "links": [
-      {
-        "href": "https://app.cardinalweb3.com",
-        "label": "Cardinal App"
-      }
-    ]
-  },
-  "contextual": {
-    "options": [
-      "copy",
-      "view",
-      "chatgpt",
-      "claude",
-      "perplexity",
-      "mcp",
-      "cursor",
-      "vscode"
-    ]
-  },
-  "footer": {
-    "socials": {
-      "github": "https://github.com/Cardinal-Web3"
-    }
-  },
+  "navbar": {"links":[{"href":"https://app.cardinalweb3.com","label":"Cardinal App"}]},
+  "contextual": {"options":["copy","view","chatgpt","claude","perplexity","mcp","cursor","vscode"]},
+  "footer": {"socials":{"github":"https://github.com/Cardinal-Web3"}},
   "description": "Public product and developer documentation for Cardinal Web3 Security.",
-  "appearance": {
-    "default": "dark",
-    "strict": false
-  },
-  "background": {
-    "decoration": "grid",
-    "color": {
-      "light": "#F8FAFC",
-      "dark": "#101218"
-    }
-  },
-  "fonts": {
-    "family": "Geist"
-  },
-  "styling": {
-    "eyebrows": "breadcrumbs",
-    "codeblocks": "dark"
-  }
+  "appearance": {"default":"dark","strict":false},
+  "background": {"decoration":"grid","color":{"light":"#F8FAFC","dark":"#101218"}},
+  "fonts": {"family":"Geist"},
+  "styling": {"eyebrows":"breadcrumbs","codeblocks":"dark"}
 }
