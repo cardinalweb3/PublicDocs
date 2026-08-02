@@ -1,0 +1,306 @@
+---
+title: "Pilot Onboarding"
+description: "Plan, integrate, launch, and evaluate a controlled Cardinal design-partner pilot."
+---
+
+Cardinal pilots help selected organisations validate pre-transaction protection and risk-routed settlement in a controlled environment before wider production adoption.
+
+A typical design-partner pilot runs for **60–90 days** and focuses on one clearly defined transaction flow, a limited group of users, explicit networks and assets, measurable success criteria, and documented operational controls.
+
+<Warning>
+A Cardinal pilot is not approval for unrestricted production use. SafeSend is currently a controlled Arbitrum Sepolia testnet MVP. Programmable Escrow remains in final testing and security hardening. The Protection API does not replace KYC, KYB, AML, sanctions, custody, legal, licensing, or regulated-escrow processes.
+</Warning>
+
+## Who the programme is for
+
+The programme is designed for organisations that can provide a real workflow, an accountable implementation team, and structured feedback.
+
+- Wallet and exchange providers
+- Custodians and vault platforms
+- Stablecoin and payment companies
+- RWA and tokenisation platforms
+- UAE real estate brokers and developers
+- OTC desks and enterprise treasury teams
+- Luxury vehicle, yacht, and private-aviation businesses
+- Other businesses processing high-value digital-asset payments
+
+<Card title="Recommended starting point" icon="flag-checkered">
+Start with one real high-value customer workflow and one wallet, exchange, or digital-asset platform integration. Keep each pilot narrow enough to measure clearly.
+</Card>
+
+## Pilot outcomes
+
+Every pilot should answer five questions:
+
+1. Can Cardinal be integrated into the selected workflow safely?
+2. Does pre-transaction decisioning improve the handling of risky or incorrect intents?
+3. Can the partner operate `ALLOW`, `REVIEW`, `BLOCK`, error, and unavailable outcomes consistently?
+4. Can the transaction, decision, approval, and settlement evidence be reconciled?
+5. Is there a justified path to a production commercial agreement?
+
+The pilot is complete only when technical results and the partner's security, compliance, operational, and commercial acceptance criteria have been reviewed.
+
+## Onboarding phases
+
+| Phase | Focus | Primary output |
+| --- | --- | --- |
+| 1. Qualification | Fit, use case, decision makers, readiness | Pilot brief |
+| 2. Scope and controls | Workflow, boundaries, roles, success metrics | Agreed pilot plan |
+| 3. Technical setup | Credentials, environments, API integration | Staging integration |
+| 4. Validation | Functional, security, and operational testing | Readiness record |
+| 5. Controlled launch | Limited users, assets, networks, and values | Pilot transactions |
+| 6. Evaluation | Results, gaps, remediation, commercial decision | Pilot outcome report |
+
+## Phase 1: qualification
+
+Cardinal and the prospective partner confirm:
+
+- The transaction or payment workflow
+- The business problem and current control gap
+- Expected transaction volume and value range
+- Target network, asset, wallets, and contracts
+- Required decision and approval points
+- Named business, technical, security, compliance, and operational owners
+- Product capabilities required for the pilot
+- Legal, regulatory, custody, and data-protection dependencies
+- Target launch window and resource availability
+
+Avoid pilots that depend on unverified roadmap features or an unrestricted production deployment. Narrow the scope until it can be supported and tested safely.
+
+## Phase 2: scope and controls
+
+Create a written pilot plan before integration begins.
+
+### Pilot definition
+
+Document:
+
+- Partner name and pilot owners
+- Selected use case and user journey
+- Included and excluded products
+- Network, token, transaction type, and value limits
+- Number and type of pilot users
+- Approved sending, receiving, and contract addresses
+- Pilot start, review, and end dates
+- Commercial terms and conversion decision
+
+### Decision policy
+
+Agree how every outcome will be handled.
+
+| Outcome | Required pilot action |
+| --- | --- |
+| `ALLOW` | Continue only when all partner controls also pass |
+| `REVIEW` | Pause and follow the named manual-review or additional-approval process |
+| `BLOCK` | Stop the proposed transaction and record the case |
+| Error or timeout | Fail closed and pause or queue the transaction |
+| Cardinal unavailable | Apply the agreed degraded-service process; never silently allow |
+
+The partner's policy may be stricter than Cardinal. A pilot must never weaken a `BLOCK` result.
+
+### Responsibility matrix
+
+| Area | Cardinal | Partner |
+| --- | --- | --- |
+| Protection API and integration guidance | Responsible | Implements and validates |
+| Final transaction intent | Reviews submitted intent | Constructs and verifies |
+| User identity and authority | Not the identity provider | Responsible |
+| Wallets, keys, and signing | Does not custody or sign | Responsible |
+| KYC, KYB, AML, sanctions, and monitoring | Not a replacement | Responsible |
+| Business rules and approvals | Provides decision input | Owns final policy |
+| Legal, title, licensing, and regulatory review | Provides product information | Responsible |
+| Pilot limits and participant access | Agreed jointly | Enforces operationally |
+| Incident management | Supports product investigation | Owns customer and regulatory response |
+
+## Phase 3: technical setup
+
+### Environment
+
+Use separate pilot credentials and an approved non-production or limited pilot environment.
+
+- Keep the Cardinal API key behind the partner backend.
+- Store secrets in an approved secret manager.
+- Restrict access using least privilege.
+- Do not copy production secrets or unnecessary personal data into the pilot.
+- Confirm supported network and asset identifiers.
+- Confirm exact smart-contract addresses from an approved source.
+- Use test assets where the selected product is not production-ready.
+
+### Integration
+
+The partner should:
+
+1. Build the final canonical transaction intent.
+2. Submit it to the Protection API from a trusted backend.
+3. Store the Cardinal `request_id`, decision, findings, and intent hash.
+4. Apply the agreed decision policy.
+5. Bind user confirmation and approvals to the checked intent.
+6. Verify that the signed or settled transaction matches the intent.
+7. Reconcile the final blockchain result.
+
+Read the [Integration Guide](/integration-guide) and [Security Best Practices](/security-best-practices) before implementation.
+
+### Data minimisation
+
+Submit only the transaction fields required for the check. Do not send private keys, seed phrases, authentication secrets, identity documents, confidential contracts, title documents, or unnecessary personal information.
+
+## Phase 4: validation
+
+Complete the agreed test plan before the controlled launch.
+
+### Required decision tests
+
+- Valid low-risk intent
+- First-time or changed recipient
+- Wrong network
+- Changed token or amount
+- Changed contract or permission scope
+- `REVIEW` handling
+- `BLOCK` handling
+- Invalid request
+- Authentication failure
+- Rate limit response
+- Timeout and unavailable service
+- Duplicate submission or retry
+- Checked-intent and signed-transaction mismatch
+
+### Product-flow tests
+
+Where applicable, test:
+
+- SafeSend creation, funding, protection window, cancellation, claim, and expiry
+- Escrow creation, funding, approval, release, refund, cancellation, expiry, milestone, and denied state transitions
+- Wallet connection and network switching
+- Additional or multisignature approvals
+- Evidence and reconciliation records
+
+Only test features included in the signed pilot scope. Escrow testing does not establish that a deployment is audited, licensed, regulated, or production-ready.
+
+### Readiness review
+
+Before launch, both parties should confirm:
+
+- Test cases pass or have approved limitations.
+- Pilot users and approvers are trained.
+- Value, asset, network, and address limits are enforced.
+- Monitoring and escalation contacts are active.
+- Incident and credential-rotation procedures are documented.
+- Support hours and response expectations are understood.
+- Legal, compliance, security, and operational approvals are recorded.
+
+## Phase 5: controlled launch
+
+Begin with the smallest useful cohort and transaction value.
+
+### Launch controls
+
+- Named pilot users only
+- Explicit transaction and daily value limits
+- Approved networks, tokens, destinations, and contracts
+- Manual handling for `REVIEW`
+- No bypass for `BLOCK`, timeout, or unavailable outcomes
+- Dual approval for high-value or release actions where required
+- Daily reconciliation during the initial launch period
+- A documented pause procedure
+
+Expand the pilot only after the current stage meets its acceptance criteria.
+
+### Operational rhythm
+
+A practical pilot cadence includes:
+
+- Launch-day monitoring
+- Weekly technical and operational review
+- Decision-quality and incident review
+- Open issue and remediation tracking
+- Mid-pilot scope and success-metric review
+- Final outcome and conversion meeting
+
+Material scope changes should be documented and approved. A new network, asset, product, or transaction type may require a separate validation cycle.
+
+## Success metrics
+
+Agree baselines, targets, data sources, owners, and review dates before launch.
+
+| Category | Example measurements |
+| --- | --- |
+| Integration | Time to integrate, test completion, deployment readiness |
+| Decisioning | `ALLOW`, `REVIEW`, and `BLOCK` distribution; confirmed useful findings |
+| Accuracy | False-positive rate, false-negative investigations, reviewer agreement |
+| Operations | Review handling time, approval time, escalation volume |
+| Reliability | API latency, availability, errors, timeouts, retry success |
+| Security | Wrong-network or altered-intent prevention, policy bypass attempts |
+| Reconciliation | Requests matched to business records and transaction hashes |
+| Customer impact | User completion, abandonment, support contacts, protected value |
+| Commercial | Agreed production scope, expected usage, conversion readiness |
+
+Do not claim fraud-loss reduction without a defensible baseline and verified outcome data.
+
+## Evidence record
+
+Maintain an append-only pilot evidence record containing:
+
+- Pilot and business transaction IDs
+- Canonical intent and intent hash
+- Cardinal `request_id`, decision, findings, and timestamp
+- Partner policy result
+- Initiator and approver references
+- SafeSend or Escrow references where applicable
+- Blockchain transaction hashes
+- Final outcome and reconciliation status
+- Review, incident, support, and remediation references
+- Pilot limit or scope changes
+
+Keep sensitive business, identity, and legal records in the partner's controlled systems.
+
+## Support and escalation
+
+Each pilot should have named business and technical contacts on both sides. Use the agreed channel for integration questions, suspected product defects, decision investigations, and service incidents.
+
+For urgent security issues, first pause the affected flow, protect credentials, preserve evidence, and follow the partner's incident-response process. Never send a private key, seed phrase, password, authentication token, or live API key to Cardinal support.
+
+## Pilot completion
+
+At the end of the pilot, Cardinal and the partner review:
+
+- Results against every success criterion
+- Confirmed product and operational value
+- Security, compliance, reliability, and user-experience gaps
+- Required remediation and owners
+- Production scope, networks, assets, values, and service expectations
+- Commercial terms and target production date
+- Whether a case study, testimonial, or public announcement is separately approved
+
+Possible outcomes are:
+
+- Proceed to a production agreement
+- Extend the controlled pilot with documented objectives
+- Pause for remediation or required product readiness
+- End the pilot without production deployment
+
+Pilot participation does not create permission to use Cardinal branding, publish results, or make security, audit, compliance, or production claims unless agreed in writing.
+
+## Onboarding checklist
+
+- [ ] Pilot brief and accountable owners confirmed
+- [ ] Use case, scope, exclusions, duration, and commercial terms agreed
+- [ ] Network, token, values, addresses, contracts, and users limited
+- [ ] Responsibility matrix approved
+- [ ] Success metrics and baselines documented
+- [ ] Pilot credentials issued and stored securely
+- [ ] Integration and security guidance reviewed
+- [ ] Decision, error, timeout, and unavailable paths tested
+- [ ] Product lifecycle tests completed where applicable
+- [ ] Legal, compliance, security, and operational approvals recorded
+- [ ] Monitoring, support, escalation, and incident contacts active
+- [ ] Controlled-launch approval signed off
+- [ ] Weekly review and final evaluation scheduled
+
+## Request a pilot
+
+Organisations interested in becoming a Cardinal Pilot Partner can contact:
+
+- **Email:** [contact@cardinalweb3.com](mailto:contact@cardinalweb3.com)
+- **Telephone:** [+971 58 512 0045](tel:+971585120045)
+
+Include your organisation, proposed use case, target network and asset, expected transaction profile, technical contact, and preferred launch window. Cardinal will review fit and readiness before confirming a pilot.
