@@ -1,0 +1,209 @@
+---
+title: "Changelog & Release Notes"
+description: "Confirmed Cardinal product, pilot, API, and documentation updates."
+---
+
+This page records confirmed public updates to Cardinal products and documentation. Each entry identifies whether a capability is generally available, pilot or testnet only, or still in development.
+
+<Warning>
+An item listed in the changelog is not automatically approved for production use. Confirm the exact environment, network, asset, contract address, audit status, limits, and partner agreement before enabling customer funds.
+</Warning>
+
+## Status labels
+
+| Label | Meaning |
+| --- | --- |
+| **Available** | Publicly accessible capability confirmed for its documented scope |
+| **Pilot** | Controlled partner or limited-access capability |
+| **Testnet** | Uses test networks and test assets only |
+| **Documentation** | Public documentation update; not a product deployment |
+| **In development** | Not released for general production use |
+
+## Unreleased
+
+The following items remain in development, validation, or production-readiness work:
+
+- Production SafeSend deployment
+- First approved SafeSend production network
+- Programmable Escrow production deployment
+- Published production contract addresses
+- Independent smart-contract audit confirmation and remediation record
+- General release and cancellation controls for production settlement
+- Escrow fee collection in an approved production deployment
+- Production dispute and appeal operations
+- Incoming-funds tracing and stolen or hacked-funds detection
+- Expanded Enterprise Dashboard and policy workflows
+
+These items must not be described as generally available until a dated release entry confirms the exact scope.
+
+## 2 August 2026
+
+### Public documentation platform
+
+**Documentation**
+
+Launched and expanded Cardinal's public Mintlify documentation from the `cardinalweb3/PublicDocs` repository.
+
+#### Added
+
+- Branded documentation homepage
+- Protection API quickstart and product guide
+- SafeSend guide with testnet limitations
+- Programmable Escrow lifecycle and capability guide
+- Product implementation-status page
+- General integration guide
+- Wallet integration guide
+- Exchange integration guide
+- Custodian and vault integration guide
+- RWA and high-value payment guide
+- Security best-practices guide
+- Pilot onboarding guide
+- FAQ and troubleshooting guide
+- Changelog and release-notes framework
+
+#### Documentation controls
+
+- Added clear `ALLOW`, `REVIEW`, and `BLOCK` handling
+- Added fail-closed guidance for errors, timeouts, and unavailable service
+- Added canonical-intent and check-to-sign integrity guidance
+- Added current SafeSend and Escrow capability boundaries
+- Added non-custodial and compliance responsibility statements
+- Added pilot success metrics, evidence records, and controlled-launch checklists
+
+### Cardinal documentation branding
+
+**Documentation**
+
+- Added the official Cardinal horizontal wordmark for light and dark headers
+- Added Cardinal colour treatments and dark-first documentation appearance
+- Retained the Cardinal application and GitHub navigation links
+
+### Protection API documentation baseline
+
+**Available** · **Documentation**
+
+Documented the current pre-transaction decisioning interface and its minimum integration contract.
+
+#### Confirmed behaviour
+
+- One submitted request represents one transaction intent
+- Required transaction fields include sender, recipient, network, token, and amount
+- Explainable `ALLOW`, `REVIEW`, and `BLOCK` outcomes
+- Partner policy remains authoritative and may be stricter than Cardinal
+- Changed transaction details require a new check
+- Errors, timeouts, and unavailable service must not be converted into `ALLOW`
+
+### SafeSend controlled MVP
+
+**Pilot** · **Testnet**
+
+Documented the verified SafeSend flow as a controlled Arbitrum Sepolia testnet MVP.
+
+#### Confirmed scope
+
+- Wallet-connected protected-transfer flow
+- Delayed and cancellable transfer design
+- Protection-window concept
+- Testnet funding, cancellation, claim, expiry, and reconciliation guidance
+
+#### Not included in this release
+
+- Unrestricted mainnet funds
+- General production availability
+- A claim that every transfer remains cancellable in every state
+- Production contract or audit confirmation
+
+### Programmable Escrow implementation guide
+
+**In development** · **Documentation**
+
+Published the confirmed contract lifecycle while keeping production readiness separate.
+
+#### Documented lifecycle
+
+- Buyer-funded ERC-20 Escrow
+- Seller acceptance
+- Buyer release
+- Pre-acceptance refund
+- Timed seller claim
+- Dispute initiation
+- Resolver settlement
+- Fee behaviour
+- Separate threshold-approval contract pattern
+
+#### Not confirmed
+
+- General mainnet availability
+- Published production deployment addresses
+- External audit completion
+- Licensed or regulated escrow status
+- Final arbitrator operations
+
+## 9 July 2026
+
+### Public Cardinal web MVP
+
+**Pilot**
+
+Confirmed the public Cardinal application at [app.cardinalweb3.com](https://app.cardinalweb3.com).
+
+#### Available in the public MVP
+
+- Wallet connection and MetaMask-led experience
+- SafeSend pilot interface
+- Protected-transfer workflow
+- Protection API integration
+- Pre-transaction risk analysis
+- Explainable `ALLOW`, `REVIEW`, and `BLOCK` decisioning
+
+The public MVP is pilot-ready for controlled evaluation. It is not evidence that every displayed module, network, metric, or settlement route is in unrestricted production.
+
+## Release-note policy
+
+Future entries should contain:
+
+- Release date
+- Product or documentation area
+- Availability label
+- Exact environment and network
+- Added, changed, fixed, or deprecated behaviour
+- Migration or customer action required
+- Known limitations
+- Contract addresses when publicly approved
+- Audit and remediation status when confirmed
+- Links to relevant guides
+
+## Versioning guidance
+
+Cardinal may use different version identifiers for APIs, applications, smart contracts, and documentation.
+
+- **API versions** describe the request and response contract.
+- **Application versions** describe public interface releases.
+- **Smart-contract releases** must identify network and deployed address.
+- **Documentation updates** describe guidance and do not change product behaviour by themselves.
+
+Do not infer compatibility between versions. Confirm the version and environment included in the applicable partner agreement.
+
+## Breaking changes
+
+A future change is considered breaking when an existing integration must change to continue operating safely. Examples include:
+
+- Required request-field changes
+- Authentication changes
+- Decision or finding schema changes
+- Network or token identifier changes
+- Contract replacement
+- State-transition changes
+- Removed or renamed endpoints
+- Changed signature, approval, or permission requirements
+
+Breaking changes will include migration guidance and an effective date where appropriate.
+
+## Report an issue
+
+If a release note appears inconsistent with observed behaviour, contact:
+
+- **Email:** [contact@cardinalweb3.com](mailto:contact@cardinalweb3.com)
+- **Telephone:** [+971 58 512 0045](tel:+971585120045)
+
+Include the product, environment, version, network, approximate time, Cardinal `request_id` where applicable, and non-secret reproduction details.
