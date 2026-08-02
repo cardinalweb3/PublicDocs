@@ -12,7 +12,10 @@
     "pages": [
       {
         "group": "Getting Started",
-        "pages": ["index", "quickstart"]
+        "pages": [
+          "index",
+          "quickstart"
+        ]
       }
     ],
     "global": {
@@ -32,17 +35,38 @@
     "groups": [
       {
         "group": "Getting Started",
-        "pages": ["index", "quickstart"]
+        "pages": [
+          "index",
+          "quickstart"
+        ]
       },
       {
         "group": "Products",
         "icon": "grid-2",
-        "pages": ["protection-api", "safesend", "escrow", "product-status"]
+        "pages": [
+          "protection-api",
+          "safesend",
+          "escrow",
+          "product-status"
+        ]
       },
       {
         "group": "Developers",
         "icon": "code",
-        "pages": ["integration-guide", "wallet-integration", "exchange-integration", "custodian-vault-integration", "rwa-high-value-payments"]
+        "pages": [
+          "integration-guide",
+          "wallet-integration",
+          "exchange-integration",
+          "custodian-vault-integration",
+          "rwa-high-value-payments"
+        ]
+      },
+      {
+        "group": "Security",
+        "icon": "shield-check",
+        "pages": [
+          "security-best-practices"
+        ]
       }
     ]
   },
@@ -60,7 +84,16 @@
     ]
   },
   "contextual": {
-    "options": ["copy", "view", "chatgpt", "claude", "perplexity", "mcp", "cursor", "vscode"]
+    "options": [
+      "copy",
+      "view",
+      "chatgpt",
+      "claude",
+      "perplexity",
+      "mcp",
+      "cursor",
+      "vscode"
+    ]
   },
   "footer": {
     "socials": {
