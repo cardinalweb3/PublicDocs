@@ -1,0 +1,204 @@
+---
+title: "RWA and High-Value Payments"
+description: "Integrate Cardinal into property, tokenised-asset, OTC, luxury, and other high-value payment workflows."
+---
+
+Cardinal helps businesses protect high-value digital-asset transactions before value moves. The Protection API evaluates the final payment intent, returns an explainable `ALLOW`, `REVIEW`, or `BLOCK` decision, and enables the business to route settlement through direct payment, additional approval, SafeSend, or programmable Escrow.
+
+This guide is designed for real estate brokers and developers, RWA platforms, OTC desks, payment providers, enterprise treasury teams, family offices, and sellers of high-value assets such as vehicles, yachts, aircraft, jewellery, and art.
+
+<Warning>
+Cardinal is pilot-ready, not a substitute for legal, title, KYC, AML, sanctions, licensing, custody, or regulated escrow processes. SafeSend is currently a controlled Arbitrum Sepolia testnet MVP. Programmable Escrow remains in final testing and security hardening. Tokenised real estate is a future use case, not a current production claim.
+</Warning>
+
+## Commercial transaction model
+
+Represent the commercial agreement separately from the blockchain transaction. A Cardinal-enabled workflow should bind:
+
+- Business transaction or order ID
+- Commercial purpose and asset description
+- Buyer, seller, broker, and required approvers
+- Approved sending and receiving addresses
+- Network, token, amount, and payment schedule
+- Protection and release conditions
+- Refund, cancellation, expiry, and dispute rules
+- Cardinal decision and selected settlement route
+- Final transaction hashes and settlement outcome
+
+<Card title="Critical control point" icon="shield-check">
+Run the Protection API after the payment intent is final, but before the customer signs, the business accepts funds, or an Escrow release is authorised.
+</Card>
+
+## Reference workflow
+
+1. The business creates a transaction record for the property, asset, invoice, reservation, or OTC order.
+2. Required participants complete the business's identity, authority, title, contract, and compliance processes.
+3. The payer selects the approved recipient, network, token, amount, and settlement method.
+4. A server-side Cardinal adapter submits the canonical intent to the Protection API.
+5. The business combines Cardinal's decision with value limits, destination rules, approvals, and legal/compliance controls.
+6. The transaction proceeds, pauses for review, routes to SafeSend or Escrow, requires additional approval, or stops.
+7. The platform records funding, release, refund, cancellation, and final settlement evidence.
+
+## Canonical payment intent
+
+Bind the decision to the exact action the payer or settlement operator will authorise.
+
+```json
+{
+  "from": "0xBuyerWallet",
+  "to": "0xApprovedSettlementWallet",
+  "chain": "arbitrum",
+  "token": "USDC",
+  "amount": "25000",
+  "transaction_type": "transfer"
+}
+```
+
+Required Protection API fields are `from`, `to`, `chain`, `token`, and `amount`. Include `contract_address`, `contract_verified`, `approval_amount`, and `permissions` when they describe the proposed action.
+
+Store the commercial transaction ID and an internal hash of the canonical intent with the Cardinal `request_id`. Never put confidential contracts, identity documents, personal data, or property records into the Protection API request unless a separate approved integration explicitly requires them.
+
+## Decision and settlement policy
+
+| Cardinal decision | Minimum business action | Typical route |
+| --- | --- | --- |
+| `ALLOW` | Continue only if every business and compliance control also passes | Direct settlement or agreed protected route |
+| `REVIEW` | Pause automatic settlement | Customer warning, enhanced review, additional approval, SafeSend, or Escrow |
+| `BLOCK` | Stop the proposed payment or release | Reject or quarantine the transaction for investigation |
+
+Business policy may be stricter than Cardinal. Never weaken a `BLOCK` decision or convert an error, timeout, or unavailable response into `ALLOW`.
+
+## Protected settlement routes
+
+### Direct settlement
+
+Use direct settlement only when the Cardinal decision and every participant, contract, title, payment, destination, and compliance control pass. High-value policies may still require dual approval.
+
+### SafeSend
+
+SafeSend is intended for delayed, cancellable transfers where a protection window is appropriate. The currently verified flow is a controlled Arbitrum Sepolia testnet MVP, not unrestricted production or mainnet settlement.
+
+### Programmable Escrow
+
+Use an agreed Escrow pilot when funds should remain subject to release conditions, buyer/seller approval, multiple approvers, time-based rules, cancellation, or refund logic.
+
+Cardinal Escrow is designed as non-custodial or trust-minimised infrastructure, subject to jurisdiction-specific legal, AML, regulatory, title, and licensing review. Do not describe it as audited, licensed, regulated, or generally available on mainnet unless those facts are separately confirmed.
+
+### Additional approval
+
+Businesses can require a finance controller, broker, authorised representative, multisig quorum, or other approver before funding or release. Cardinal does not validate whether an approver has legal authority; that remains the partner's responsibility.
+
+## Real estate payment pattern
+
+A narrow UAE property pilot can focus on a reservation deposit or another clearly defined payment stage:
+
+1. The broker or developer creates the property transaction.
+2. The buyer receives an approved payment request.
+3. The buyer connects a supported wallet and confirms the final intent.
+4. Cardinal checks the proposed blockchain transaction.
+5. Business policy applies `ALLOW`, `REVIEW`, or `BLOCK`.
+6. Eligible test transactions use SafeSend or an agreed Escrow pilot.
+7. Authorised parties approve release, refund, or cancellation under the written commercial agreement.
+8. The platform records the full evidence trail.
+
+Cardinal does not verify land title, ownership, reservation contracts, completion milestones, buyer eligibility, conveyancing, or legal transfer of property. Those controls must stay with authorised professionals and regulated counterparties.
+
+## RWA and tokenised-asset pattern
+
+For an RWA platform, bind the payment to the platform's asset or issuance record, participant eligibility, approved wallet, network, amount, and settlement conditions.
+
+Cardinal currently protects the proposed payment intent; it does not establish that an asset is genuine, correctly valued, legally owned, bankruptcy remote, transferable, or compliant with securities, financial-promotion, custody, or investor-protection rules.
+
+Tokenised real estate and broader asset-tokenisation workflows are future use cases that require separate legal, technical, custody, oracle, transfer-restriction, and regulatory validation.
+
+## OTC and high-value commerce
+
+The same control model can support:
+
+- OTC digital-asset orders
+- Vehicle, yacht, aircraft, jewellery, and art payments
+- Construction or milestone payments
+- Import-export and wholesale invoices
+- Professional-service retainers
+- Cross-border enterprise treasury payments
+- Marketplace transactions with conditional settlement
+
+For physical assets, Cardinal protects the digital payment path. It does not inspect, authenticate, value, insure, deliver, register, or transfer ownership of the underlying item.
+
+## Payment schedule and milestone controls
+
+For staged transactions, create a separate canonical intent and Cardinal check for every deposit, milestone, balance payment, release, or refund.
+
+Do not reuse a decision when:
+
+- The payer or recipient changes
+- The network, token, amount, or contract changes
+- A milestone is amended
+- The payment route changes
+- Approval or permission data changes
+- The decision has exceeded the partner-defined freshness window
+
+A commercial amendment should create a new version of the transaction record and invalidate approvals tied to the superseded intent.
+
+## Transaction evidence record
+
+Maintain an append-only evidence record, sometimes described in Cardinal planning as a Transaction Passport, containing:
+
+- Commercial purpose and asset or invoice reference
+- Participant and approved-address references
+- Network, token, amount, and payment schedule
+- Cardinal `request_id`, decision, findings, and check time
+- Internal policy result and selected settlement route
+- Required approvals and acknowledgements
+- SafeSend or Escrow funding, release, refund, and cancellation events
+- Blockchain transaction hashes and timestamps
+- Final settlement and reconciliation result
+- Dispute references and evidence locations
+- Superseded intent versions and re-check history
+
+Store sensitive contracts and identity evidence in the partner's controlled systems. The public Protection API request should contain only the transaction data needed for the check.
+
+## Incoming funds and compliance boundary
+
+Incoming-funds analysis, source-of-funds tracing, stolen or hacked-funds detection, illicit-exposure analysis, sanctions screening, mixer exposure, and one-to-two-hop tracing are roadmap capabilities. Do not present the current integration as a complete AML, KYT, sanctions, source-of-wealth, source-of-funds, or stolen-funds screening product.
+
+The partner remains responsible for KYC and KYB, beneficial ownership, source-of-funds and source-of-wealth checks, sanctions controls, transaction monitoring, suspicious-activity processes, consumer protection, custody, tax, title, licensing, and jurisdiction-specific obligations.
+
+## Reliability and security
+
+- Keep the Cardinal API key behind the partner backend and in a secret manager.
+- Apply short, bounded timeouts and controlled retries.
+- Use exponential backoff for `429` responses.
+- Pause or queue the payment when Cardinal is unavailable.
+- Never fail open, bypass the check silently, or substitute mock decisions.
+- Bind customer and approver actions to the canonical intent hash.
+- Re-check immediately before a high-value signature or Escrow release when required by policy.
+- Reconcile every Cardinal request with the business transaction and blockchain outcome.
+- Avoid storing private keys, seed phrases, signing material, authentication secrets, or unnecessary personal data.
+
+Each public Protection API request represents one transaction intent. Do not assume batch endpoints, webhooks, asynchronous callbacks, legal-document storage, or identity-verification services unless they are included in a partner agreement.
+
+## Current capability boundary
+
+The current Protection API provides pre-transaction decisioning and deterministic checks for the submitted intent. Supported input slugs include `ethereum`, `bnb`, `polygon`, `base`, `arbitrum`, `optimism`, and `solana`; this does not mean every network, asset, or jurisdiction has completed RWA or high-value production validation.
+
+The current public integration must not be described as guaranteed fraud prevention, full transaction simulation, an audited settlement system, licensed escrow, regulated custody, legal transfer infrastructure, or multi-chain production coverage.
+
+## Pilot checklist
+
+Before enabling a pilot:
+
+- Select one transaction type, network, asset, and value range.
+- Define the commercial agreement, participant roles, approved addresses, and payment lifecycle.
+- Document KYC, AML, title, contract, licensing, custody, and regulated-party responsibilities.
+- Map `ALLOW`, `REVIEW`, `BLOCK`, errors, timeouts, and unavailable-service outcomes.
+- Test deposit, milestone, balance, release, refund, cancellation, expiry, and amended-intent paths that are in scope.
+- Verify intent hashing, decision freshness, approvals, and separation of duties.
+- Reconcile Cardinal request IDs, business transaction IDs, Escrow or SafeSend IDs, and transaction hashes.
+- Confirm contract addresses, networks, audit status, fees, dispute handling, and production readiness separately.
+- Complete technical security and jurisdiction-specific legal and regulatory review.
+- Set measurable acceptance criteria for decision quality, latency, operational handling, and reconciliation.
+
+## Next steps
+
+Start with a controlled 30–60 day design-partner pilot, such as a UAE property reservation deposit or another clearly defined high-value payment. Use explicit limits and manual handling for `REVIEW` decisions. Expand only after the full commercial, operational, security, legal, and settlement workflow meets the agreed acceptance criteria.
