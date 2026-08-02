@@ -1,0 +1,166 @@
+---
+title: "Custodian and Vault Integration"
+description: "Add pre-transaction decisioning, policy controls, and protected settlement to custodian, vault, and institutional treasury workflows."
+---
+
+Cardinal helps custodians and vault operators place an explainable transaction-control layer between a transfer proposal and final signing. The Protection API evaluates the canonical intent, returns `ALLOW`, `REVIEW`, or `BLOCK`, and enables your policy engine to select direct settlement, additional approval, SafeSend, or programmable Escrow.
+
+<Warning>
+Cardinal does not custody assets, hold private keys, replace your signing system, or authorize a transfer on your behalf. SafeSend is currently a connected Arbitrum Sepolia testnet MVP. Programmable Escrow remains in final testing and security hardening.
+</Warning>
+
+## Where Cardinal fits
+
+Keep Cardinal inside the secure service boundary that already manages transaction proposals and approvals.
+
+1. A user, policy process, or authorised system creates a transfer proposal.
+2. Your platform authenticates the requester and validates account, vault, mandate, and destination rules.
+3. A server-side Cardinal adapter submits the final transaction intent to the Protection API.
+4. Your policy engine combines Cardinal's decision with internal controls.
+5. Required approvers review the same immutable intent and findings.
+6. Your existing HSM, MPC, multisig, or wallet infrastructure signs and broadcasts only after every control passes.
+7. The custodian records the transaction hash and final settlement state.
+
+<Card title="Control point" icon="vault">
+Run Cardinal after the proposal is complete, but before approval quorum, key release, signing, or broadcast.
+</Card>
+
+## Canonical transaction intent
+
+Bind the Cardinal decision to the exact action that approvers and signers will authorise.
+
+```json
+{
+  "from": "0xInstitutionalVault",
+  "to": "0xApprovedCounterparty",
+  "chain": "ethereum",
+  "token": "USDC",
+  "amount": "500000",
+  "transaction_type": "transfer"
+}
+```
+
+Required fields are `from`, `to`, `chain`, `token`, and `amount`. Include `contract_address`, `contract_verified`, `approval_amount`, and `permissions` when the proposed action involves a contract call or token approval.
+
+Generate or preserve an internal intent hash from the canonical payload. Store it with the Cardinal `request_id`, policy result, approval record, and signed transaction.
+
+## Decision and approval policy
+
+| Cardinal decision | Minimum custodian action | Typical policy route |
+| --- | --- | --- |
+| `ALLOW` | Continue only when all internal controls pass | Normal approval quorum and settlement |
+| `REVIEW` | Pause automated processing | Enhanced review, additional signer, or protected settlement |
+| `BLOCK` | Stop key release, signing, and broadcast | Reject or quarantine the proposal for investigation |
+
+Internal policy may be stricter than Cardinal. Never weaken a `BLOCK` decision or treat a timeout, invalid response, or unavailable service as `ALLOW`.
+
+## Separation of duties
+
+Cardinal should complement, not replace, institutional controls:
+
+- Keep proposal creation separate from approval and signing.
+- Require the configured quorum for the vault, asset, value, and destination.
+- Prevent the proposer from altering the intent after approval.
+- Bind every approval to the intent hash and Cardinal decision.
+- Require fresh approval when recipient, chain, token, amount, contract, permissions, or route changes.
+- Record emergency overrides with named authority, reason, time, and independent review.
+- Keep Cardinal API credentials separate from custody keys and signing infrastructure.
+
+Cardinal never needs access to private keys, seed phrases, HSM credentials, MPC shares, or raw signing material.
+
+## Protected settlement routes
+
+Your policy engine may use the decision to select one of these paths:
+
+- **Direct settlement:** normal custodian signing flow after an `ALLOW` decision and all internal approvals.
+- **Additional approval:** require a higher quorum, specialist review, or delayed signing for `REVIEW`.
+- **SafeSend:** route an eligible pilot transfer through a delay or cancellation-window flow. The verified integration is currently on Arbitrum Sepolia testnet.
+- **Programmable Escrow:** use an agreed pilot flow where release conditions, cancellation, or counterparty approval are required.
+- **Stop:** prevent key release, signing, and broadcast after `BLOCK`.
+
+Contract addresses, supported production networks, fees, audit status, and custody compatibility must be confirmed in the partner implementation plan. Do not assume unrestricted mainnet availability.
+
+## Vault and treasury use cases
+
+A pilot can begin with one or more controlled scenarios:
+
+- Treasury transfers to approved counterparties
+- New or changed withdrawal destinations
+- High-value or unusual asset movements
+- OTC or institutional payment settlement
+- Token approvals and permission changes
+- Smart-contract interactions initiated from a managed vault
+- Transfers that require enhanced review or protected settlement
+
+Cardinal is a transaction decision and routing layer. Vault strategy, yield risk, protocol solvency, portfolio construction, custody licensing, and mandate suitability remain outside the current public integration scope.
+
+## Re-check and freshness rules
+
+Run a new check whenever the final intent changes, including:
+
+- Source vault or sub-account
+- Recipient or approved-destination status
+- Network, token, or amount
+- Contract target or function
+- Approval amount or permissions
+- Settlement route
+- Transaction data produced after simulation or signing preparation
+
+Define a partner-specific decision lifetime. Re-check queued or delayed proposals before the final approval or signature if the decision has expired.
+
+## Audit and reconciliation
+
+Store enough evidence to reconstruct the complete control path:
+
+- Proposal, vault, account, and workflow identifiers
+- Cardinal `request_id`, decision, findings, and check time
+- Canonical intent and intent hash
+- Internal policy result and selected settlement route
+- Approver identities, roles, timestamps, and quorum outcome
+- Override, acknowledgement, or manual-review evidence
+- Signing request ID, transaction hash, and broadcast time
+- Final on-chain status and reconciliation result
+- Re-check history and superseded intent versions
+
+Avoid recording API keys, custody secrets, private keys, MPC shares, full authentication tokens, or unnecessary personal data.
+
+## Reliability and failure handling
+
+Treat Cardinal as a security control:
+
+- Apply short, bounded timeouts and controlled retries.
+- Use exponential backoff for `429` responses.
+- Do not retry validation or authentication failures until the request is corrected.
+- Pause or queue the proposal when Cardinal is unavailable.
+- Do not silently bypass the check or substitute mock decisions.
+- Alert operations when latency or error thresholds are exceeded.
+- Reconcile interrupted workflows so a stale approval cannot reach signing.
+
+Each public Protection API request represents one transaction intent. Do not assume batch endpoints, webhooks, or asynchronous callbacks unless they are included in your partner agreement.
+
+## Current capability boundary
+
+The current Protection API provides pre-transaction decisioning and deterministic checks for the submitted intent. Supported input slugs include `ethereum`, `bnb`, `polygon`, `base`, `arbitrum`, `optimism`, and `solana`; this does not mean every chain has completed custodian or vault production validation.
+
+Incoming-funds analysis, source-of-funds tracing, illicit-exposure detection, sanctions screening, and one-to-two-hop exposure analysis are roadmap capabilities. Cardinal should not currently be presented as a complete AML, KYT, sanctions, custody-compliance, protocol-risk, or stolen-funds screening system.
+
+The custodian or vault operator remains responsible for custody controls, customer due diligence, mandate enforcement, legal and jurisdictional review, AML policy, transaction monitoring, case management, key governance, and regulatory obligations.
+
+## Pilot checklist
+
+Before enabling a custodian or vault workflow:
+
+- Agree on the vaults, assets, networks, transaction types, and value limits in scope.
+- Document the proposal, review, approval, signing, broadcast, and reconciliation boundaries.
+- Keep the Cardinal API key in a secret manager and rotate it under an agreed procedure.
+- Confirm Cardinal cannot access custody keys or signing material.
+- Test `ALLOW`, `REVIEW`, `BLOCK`, timeout, `429`, and unavailable-service paths.
+- Verify intent hashing, re-checks, expiry, quorum, and separation of duties.
+- Test destination changes, contract calls, approval changes, and emergency overrides.
+- Reconcile Cardinal request IDs with proposal IDs, signing requests, and transaction hashes.
+- Confirm SafeSend or Escrow addresses, audits, fees, networks, and production readiness separately.
+- Complete custodian security, legal, AML, licensing, and jurisdiction-specific review.
+
+## Next steps
+
+Start with one vault, one network, a narrow asset set, explicit limits, and manual handling for `REVIEW`. Expand only after decision quality, latency, approval integrity, signing controls, and settlement reconciliation meet the agreed acceptance criteria.
